@@ -1,0 +1,111 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虚拟环境
+venv/
+env/
+ENV/
+.venv
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 环境变量和敏感配置
+.env
+.env.local
+.env.*.local
+*.env
+.envrc
+
+# 密钥和证书
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+secrets/
+credentials/
+
+# 日志文件
+*.log
+logs/
+*.log.*
+
+# 数据库
+*.db
+*.sqlite
+*.sqlite3
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+tmp/
+temp/
+
+# Node.js (如果在backend目录下有)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.pnpm-debug.log*
+
+# 操作系统文件
+Thumbs.db
+.DS_Store
+*.swp
+*.swo
+
+# 数据文件（包含爬取的仓库数据，可能包含敏感信息）
+# 注意：数据文件可能包含仓库中的密钥、token等信息，建议忽略
+backend/DataProcessor/data/
+*.json
+*.xlsx
+*.csv
+
+# MaxKB相关敏感信息
+# 注意：maxkb_uploader.py 中包含硬编码密码，建议移除或使用环境变量
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+

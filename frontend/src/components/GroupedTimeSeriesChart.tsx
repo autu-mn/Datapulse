@@ -1,0 +1,489 @@
+import { useState, useMemo } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, Brush, ScatterChart, Scatter, ComposedChart, ReferenceDot
+} from 'recharts'
+import { Eye, EyeOff, ChevronDown, ChevronUp, Calendar, Maximize2, Minimize2, AlertCircle } from 'lucide-react'
+import type { GroupedTimeSeriesData, MetricGroupData } from '../types'
+
+interface GroupedTimeSeriesChartProps {
+  data: GroupedTimeSeriesData
+  onMonthClick: (month: string) => void
+}
+
+// 分组图标配置
+const GROUP_ICONS: Record<string, string> = {
+  popularity: '⭐',
+  development: '💻',
+  issues: '📋',
+  contributors: '👥',
+  issue_response: '⏱️',
+  pr_response: '🔄'
+}
+
+export default function GroupedTimeSeriesChart({ data, onMonthClick }: GroupedTimeSeriesChartProps) {
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['popularity', 'development']))
+  const [hiddenMetrics, setHiddenMetrics] = useState<Set<string>>(new Set())
+  const [focusedGroup, setFocusedGroup] = useState<string | null>(null)
+
+  const toggleGroup = (groupKey: string) => {
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(groupKey)) {
+        newSet.delete(groupKey)
+      } else {
+        newSet.add(groupKey)
+      }
+      return newSet
+    })
+  }
+
+  const toggleMetric = (metricKey: string) => {
+    setHiddenMetrics(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(metricKey)) {
+        newSet.delete(metricKey)
+      } else {
+        newSet.add(metricKey)
+      }
+      return newSet
+    })
+  }
+
+  const focusGroup = (groupKey: string | null) => {
+    setFocusedGroup(groupKey)
+  }
+
+  // 渲染单个分组的图表
+  const renderGroupChart = (groupKey: string, groupData: MetricGroupData) => {
+    const isExpanded = expandedGroups.has(groupKey)
+    const isFocused = focusedGroup === groupKey
+    
+    // 转换数据格式用于 Recharts
+    const chartData = data.timeAxis.map((month, index) => {
+      const point: Record<string, string | number | null> = {
+        month,
+        displayMonth: month.slice(2), // 简化显示：20-01
+        index
+      }
+      
+      Object.entries(groupData.metrics).forEach(([metricKey, metricInfo]) => {
+        // 原始数据（可能包含 null）
+        point[metricKey] = metricInfo.data[index]
+        // 插值数据（用于显示缺失点的位置）
+        if (metricInfo.interpolated) {
+          point[`${metricKey}_interpolated`] = metricInfo.interpolated[index]
+        }
+        // 标记是否为缺失值
+        if (metricInfo.missingIndices?.includes(index)) {
+          point[`${metricKey}_missing`] = true
+        }
+      })
+      
+      return point
+    })
+    
+    // 获取当前组的单位
+    const firstMetric = Object.values(groupData.metrics)[0]
+    const unit = firstMetric?.unit || ''
+    
+    // 统计缺失值数量
+    const totalMissing = Object.values(groupData.metrics).reduce((sum, m) => 
+      sum + (m.missingIndices?.length || 0), 0
+    )
+
+    return (
+      <motion.div
+        key={groupKey}
+        className={`
+          bg-cyber-card/50 backdrop-blur-sm rounded-xl border border-cyber-border overflow-hidden
+          transition-all duration-300
+          ${isFocused ? 'col-span-full' : ''}
+        `}
+        layout
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        {/* 分组头部 */}
+        <div 
+          className="px-4 py-3 border-b border-cyber-border flex items-center justify-between cursor-pointer hover:bg-cyber-surface/30 transition-colors"
+          onClick={() => toggleGroup(groupKey)}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-xl">{GROUP_ICONS[groupKey] || '📊'}</span>
+            <div>
+              <h3 className="text-lg font-display font-bold text-cyber-text">
+                {groupData.name}
+              </h3>
+              <p className="text-xs text-cyber-muted font-chinese">
+                {groupData.description}
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {/* 缺失值提示 */}
+            {totalMissing > 0 && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-white/10 rounded text-xs text-white/70">
+                <AlertCircle className="w-3 h-3" />
+                <span>{totalMissing} 缺失</span>
+              </div>
+            )}
+            
+            {/* 全屏切换 */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                focusGroup(isFocused ? null : groupKey)
+              }}
+              className="p-2 text-cyber-muted hover:text-cyber-primary transition-colors"
+              title={isFocused ? '退出全屏' : '全屏查看'}
+            >
+              {isFocused ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+            
+            {/* 展开/收起 */}
+            <button className="p-2 text-cyber-muted hover:text-cyber-primary transition-colors">
+              {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+            </button>
+          </div>
+        </div>
+
+        {/* 图表内容 */}
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* 指标切换按钮 */}
+              <div className="px-4 py-2 border-b border-cyber-border/50 flex flex-wrap gap-2">
+                {Object.entries(groupData.metrics).map(([metricKey, metricInfo]) => {
+                  const isHidden = hiddenMetrics.has(`${groupKey}-${metricKey}`)
+                  const missingCount = metricInfo.missingIndices?.length || 0
+                  
+                  return (
+                    <button
+                      key={metricKey}
+                      onClick={() => toggleMetric(`${groupKey}-${metricKey}`)}
+                      className={`
+                        flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all
+                        ${!isHidden
+                          ? 'bg-cyber-surface border-2'
+                          : 'bg-cyber-bg/50 border border-cyber-border opacity-50'
+                        }
+                      `}
+                      style={{
+                        borderColor: !isHidden ? metricInfo.color : undefined
+                      }}
+                    >
+                      {!isHidden 
+                        ? <Eye className="w-3 h-3" /> 
+                        : <EyeOff className="w-3 h-3" />
+                      }
+                      <span className="font-chinese">{metricInfo.name}</span>
+                      {metricInfo.unit && (
+                        <span className="text-cyber-muted text-xs">({metricInfo.unit})</span>
+                      )}
+                      <div 
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: metricInfo.color }}
+                      />
+                      {missingCount > 0 && (
+                        <span className="text-xs text-white/50 ml-1">
+                          ({missingCount}缺失)
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* 图表 */}
+              <div className="p-4">
+                <div className={isFocused ? 'h-[500px]' : 'h-[300px]'}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart
+                      data={chartData}
+                      margin={{ top: 10, right: 30, left: 10, bottom: 40 }}
+                    >
+                      <defs>
+                        <filter id={`glow-${groupKey}`}>
+                          <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                          <feMerge>
+                            <feMergeNode in="coloredBlur" />
+                            <feMergeNode in="SourceGraphic" />
+                          </feMerge>
+                        </filter>
+                      </defs>
+                      
+                      <CartesianGrid 
+                        strokeDasharray="3 3" 
+                        stroke="rgba(45, 58, 79, 0.5)"
+                        vertical={false}
+                      />
+                      
+                      <XAxis 
+                        dataKey="displayMonth"
+                        stroke="#8b97a8"
+                        tick={{ fill: '#8b97a8', fontSize: 10 }}
+                        tickLine={{ stroke: '#2d3a4f' }}
+                        axisLine={{ stroke: '#2d3a4f' }}
+                        interval="preserveStartEnd"
+                        tickFormatter={(value) => {
+                          const month = value.slice(3)
+                          return month === '01' ? `20${value.slice(0, 2)}` : ''
+                        }}
+                      />
+                      
+                      <YAxis 
+                        stroke="#8b97a8"
+                        tick={{ fill: '#8b97a8', fontSize: 10 }}
+                        tickLine={{ stroke: '#2d3a4f' }}
+                        axisLine={{ stroke: '#2d3a4f' }}
+                        tickFormatter={(value) => {
+                          if (value >= 1000) return `${(value / 1000).toFixed(1)}k`
+                          return value
+                        }}
+                      />
+                      
+                      <Tooltip 
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload) return null
+                          
+                          // 检查是否有缺失值
+                          const hasMissing = payload.some((entry: { dataKey?: string }) => 
+                            String(entry.dataKey || '').endsWith('_interpolated')
+                          )
+                          
+                          return (
+                            <div className="bg-cyber-card/95 backdrop-blur-md border border-cyber-border rounded-lg p-3 shadow-2xl">
+                              <div className="flex items-center gap-2 mb-2 pb-2 border-b border-cyber-border">
+                                <Calendar className="w-4 h-4 text-cyber-primary" />
+                                <span className="text-cyber-text font-mono text-sm">20{label}</span>
+                              </div>
+                              <div className="space-y-1">
+                                {payload
+                                  .filter((entry: { dataKey?: string }) => !String(entry.dataKey || '').endsWith('_interpolated'))
+                                  .map((entry: { name?: string; value?: number | null; color?: string; dataKey?: string }, index: number) => {
+                                    const isMissing = entry.value === null
+                                    return (
+                                      <div key={index} className="flex items-center justify-between gap-4">
+                                        <div className="flex items-center gap-2">
+                                          <div 
+                                            className="w-2 h-2 rounded-full"
+                                            style={{ backgroundColor: isMissing ? '#ffffff' : entry.color }}
+                                          />
+                                          <span className="text-cyber-muted text-xs font-chinese">
+                                            {entry.name}
+                                          </span>
+                                        </div>
+                                        <span className={`font-mono text-sm ${isMissing ? 'text-white/50 italic' : 'text-cyber-text'}`}>
+                                          {isMissing ? '缺失' : (
+                                            typeof entry.value === 'number' 
+                                              ? entry.value.toLocaleString() 
+                                              : entry.value
+                                          )}
+                                          {!isMissing && unit && <span className="text-cyber-muted ml-1">{unit}</span>}
+                                        </span>
+                                      </div>
+                                    )
+                                  })}
+                              </div>
+                              <button
+                                onClick={() => onMonthClick(`20${label}`)}
+                                className="mt-2 w-full py-1.5 bg-cyber-primary/20 hover:bg-cyber-primary/30 
+                                         text-cyber-primary text-xs rounded transition-colors font-chinese"
+                              >
+                                查看 Issue 详情
+                              </button>
+                            </div>
+                          )
+                        }}
+                      />
+                      
+                      <Legend 
+                        wrapperStyle={{ paddingTop: '10px' }}
+                        formatter={(value) => (
+                          <span className="text-cyber-text text-xs font-chinese">{value}</span>
+                        )}
+                      />
+
+                      {/* 渲染每个指标的线条 */}
+                      {Object.entries(groupData.metrics).map(([metricKey, metricInfo]) => {
+                        const isHidden = hiddenMetrics.has(`${groupKey}-${metricKey}`)
+                        if (isHidden) return null
+                        
+                        return (
+                          <Line
+                            key={metricKey}
+                            type="monotone"
+                            dataKey={metricKey}
+                            name={metricInfo.name}
+                            stroke={metricInfo.color}
+                            strokeWidth={2}
+                            dot={(props: { cx?: number; cy?: number; index?: number; payload?: Record<string, unknown> }) => {
+                              const { cx, cy, payload } = props
+                              if (!cx || !cy) return <circle key={`empty-${metricKey}`} />
+                              
+                              // 检查是否为缺失值点
+                              const isMissing = payload?.[`${metricKey}_missing`]
+                              
+                              if (isMissing) {
+                                // 缺失值：显示白色空心圆点
+                                const interpolatedY = payload?.[`${metricKey}_interpolated`]
+                                return (
+                                  <g key={`missing-${metricKey}-${props.index}`}>
+                                    <circle
+                                      cx={cx}
+                                      cy={cy}
+                                      r={6}
+                                      fill="transparent"
+                                      stroke="#ffffff"
+                                      strokeWidth={2}
+                                      strokeDasharray="3 2"
+                                    />
+                                    <circle
+                                      cx={cx}
+                                      cy={cy}
+                                      r={3}
+                                      fill="#ffffff"
+                                      opacity={0.5}
+                                    />
+                                  </g>
+                                )
+                              }
+                              
+                              // 正常点：不显示（除了 hover 时）
+                              return <circle key={`normal-${metricKey}-${props.index}`} />
+                            }}
+                            activeDot={{ 
+                              r: 5, 
+                              fill: metricInfo.color, 
+                              filter: `url(#glow-${groupKey})` 
+                            }}
+                            connectNulls={false}
+                          />
+                        )
+                      })}
+
+                      {isFocused && (
+                        <Brush
+                          dataKey="displayMonth"
+                          height={25}
+                          stroke="#2d3a4f"
+                          fill="#111827"
+                          tickFormatter={() => ''}
+                        />
+                      )}
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+                
+                {/* 图例说明 */}
+                <div className="mt-2 flex items-center gap-4 text-xs text-cyber-muted">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full border-2 border-dashed border-white bg-white/20" />
+                    <span>缺失数据点（位置为前后值平均）</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    )
+  }
+
+  // 如果没有数据
+  if (!data?.groups || Object.keys(data.groups).length === 0) {
+    return (
+      <div className="bg-cyber-card/50 rounded-xl border border-cyber-border p-8 text-center">
+        <AlertCircle className="w-12 h-12 text-cyber-muted mx-auto mb-4" />
+        <p className="text-cyber-muted font-chinese">暂无时序数据</p>
+        <p className="text-cyber-muted font-chinese text-sm mt-2">
+          请确保 backend/Data 目录下有处理后的数据文件
+        </p>
+      </div>
+    )
+  }
+
+  // 如果有聚焦的分组，只显示该分组
+  if (focusedGroup && data.groups[focusedGroup]) {
+    return (
+      <div className="space-y-4">
+        {renderGroupChart(focusedGroup, data.groups[focusedGroup])}
+      </div>
+    )
+  }
+
+  // 正常显示所有分组
+  return (
+    <div className="space-y-6">
+      {/* 分组总览 */}
+      <motion.div
+        className="bg-cyber-card/50 backdrop-blur-sm rounded-xl border border-cyber-border p-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <h2 className="text-xl font-display font-bold text-cyber-text mb-2">
+          时序指标分组视图
+        </h2>
+        <p className="text-sm text-cyber-muted font-chinese mb-4">
+          数据范围：{data.startMonth || data.timeAxis[0]} 至 {data.endMonth || data.timeAxis[data.timeAxis.length - 1]} 
+          · 共 {data.timeAxis.length} 个月 
+          · {Object.keys(data.groups).length} 个分组
+        </p>
+        
+        {/* 分组快捷入口 */}
+        <div className="flex flex-wrap gap-2">
+          {Object.entries(data.groups).map(([groupKey, groupData]) => {
+            // 统计该组的缺失值
+            const missingCount = Object.values(groupData.metrics).reduce((sum, m) => 
+              sum + (m.missingIndices?.length || 0), 0
+            )
+            
+            return (
+              <button
+                key={groupKey}
+                onClick={() => {
+                  setExpandedGroups(prev => new Set([...prev, groupKey]))
+                  document.getElementById(`group-${groupKey}`)?.scrollIntoView({ behavior: 'smooth' })
+                }}
+                className={`
+                  flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all
+                  border border-cyber-border hover:border-cyber-primary/50
+                  ${expandedGroups.has(groupKey) ? 'bg-cyber-primary/10 text-cyber-primary' : 'bg-cyber-bg text-cyber-muted'}
+                `}
+              >
+                <span>{GROUP_ICONS[groupKey] || '📊'}</span>
+                <span className="font-chinese">{groupData.name}</span>
+                <span className="text-xs opacity-60">
+                  ({Object.keys(groupData.metrics).length}指标)
+                </span>
+                {missingCount > 0 && (
+                  <span className="text-xs text-white/50">
+                    {missingCount}缺失
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </motion.div>
+
+      {/* 各分组图表 - 使用网格布局 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {Object.entries(data.groups).map(([groupKey, groupData]) => (
+          <div key={groupKey} id={`group-${groupKey}`}>
+            {renderGroupChart(groupKey, groupData)}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

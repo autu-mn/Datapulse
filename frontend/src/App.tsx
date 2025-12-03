@@ -1,0 +1,383 @@
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Activity, TrendingUp, GitBranch, Users, AlertCircle, FileText, BarChart3, RefreshCw } from 'lucide-react'
+import GroupedTimeSeriesChart from './components/GroupedTimeSeriesChart'
+import IssueAnalysis from './components/IssueAnalysis'
+import WaveAnalysis from './components/WaveAnalysis'
+import Header from './components/Header'
+import StatsCard from './components/StatsCard'
+import ProjectSearch from './components/ProjectSearch'
+import type { DemoData, GroupedTimeSeriesData, IssueData, WaveData } from './types'
+
+function App() {
+  const [data, setData] = useState<DemoData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'timeseries' | 'issues' | 'analysis'>('timeseries')
+  const [currentProject, setCurrentProject] = useState<string>('')
+
+  useEffect(() => {
+    // 默认加载X-lab2017_open-digger项目
+    handleProjectSelect('X-lab2017_open-digger')
+  }, [])
+
+  useEffect(() => {
+    if (currentProject) {
+      fetchData()
+    }
+  }, [currentProject])
+
+  const handleProjectSelect = (projectName: string) => {
+    setCurrentProject(projectName)
+    setError(null)
+  }
+
+  const fetchData = async () => {
+    if (!currentProject) return
+    
+    setLoading(true)
+    setError(null)
+    
+    try {
+      // 使用项目名称获取数据
+      const response = await fetch(`/api/repo/${encodeURIComponent(currentProject)}/summary`)
+      const summary = await response.json()
+      
+      if (summary.error) {
+        setError(summary.error)
+        return
+      }
+
+      // 获取时序数据
+      const timeseriesResponse = await fetch(`/api/timeseries/grouped/${encodeURIComponent(currentProject)}`)
+      const timeseriesData = await timeseriesResponse.json()
+      
+      // 获取Issue数据
+      const issuesResponse = await fetch(`/api/issues/${encodeURIComponent(currentProject)}`)
+      const issuesData = await issuesResponse.json()
+      
+      // 获取波动分析
+      const analysisResponse = await fetch(`/api/analysis/${encodeURIComponent(currentProject)}`)
+      const analysisData = await analysisResponse.json()
+      
+      setData({
+        repoKey: currentProject,
+        groupedTimeseries: timeseriesData,
+        issueCategories: issuesData.categories || [],
+        monthlyKeywords: issuesData.monthlyKeywords || {},
+        waves: analysisData.waves || []
+      })
+    } catch (err) {
+      setError('无法连接到后端服务，请确保后端已启动')
+      console.error('Error fetching data:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleMonthClick = (month: string) => {
+    // 确保月份格式正确 (YYYY-MM)
+    const normalizedMonth = month.length === 5 ? `20${month}` : month
+    setSelectedMonth(normalizedMonth)
+    setActiveTab('issues')
+  }
+
+  // 从分组数据中提取统计信息
+  const getStats = () => {
+    if (!data?.groupedTimeseries?.groups) {
+      return { stars: 0, commits: 0, prs: 0, contributors: 0 }
+    }
+    
+    const groups = data.groupedTimeseries.groups
+    
+    const getLatestValue = (groupKey: string, metricKey: string) => {
+      const group = groups[groupKey]
+      if (!group?.metrics) return 0
+      
+      // 找到匹配的指标
+      const metric = Object.entries(group.metrics).find(([key]) => 
+        key.toLowerCase().includes(metricKey.toLowerCase())
+      )
+      
+      if (!metric?.[1]?.data) return 0
+      
+      // 找最后一个非空值
+      const arr = metric[1].data
+      for (let i = arr.length - 1; i >= 0; i--) {
+        if (arr[i] !== null && arr[i] !== undefined) {
+          return arr[i] as number
+        }
+      }
+      return 0
+    }
+    
+    return {
+      stars: getLatestValue('popularity', 'star'),
+      commits: getLatestValue('development', '提交'),
+      prs: getLatestValue('development', 'pr接受'),
+      contributors: getLatestValue('contributors', '参与者')
+    }
+  }
+
+  const stats = getStats()
+
+  if (loading) {
+    return <LoadingScreen />
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-cyber-bg bg-cyber-grid flex items-center justify-center">
+        <div className="bg-cyber-card/50 rounded-xl border border-cyber-border p-8 max-w-md text-center">
+          <AlertCircle className="w-16 h-16 text-cyber-accent mx-auto mb-4" />
+          <h2 className="text-xl font-display font-bold text-cyber-text mb-2">数据加载失败</h2>
+          <p className="text-cyber-muted font-chinese mb-4">{error}</p>
+          <div className="text-sm text-cyber-muted font-chinese mb-4">
+            <p>请确保：</p>
+            <ul className="list-disc list-inside mt-2 text-left">
+              <li>后端服务已启动 (python app.py)</li>
+              <li>Data 目录下有处理后的数据</li>
+            </ul>
+          </div>
+          <button
+            onClick={fetchData}
+            className="flex items-center gap-2 px-6 py-3 bg-cyber-primary/20 text-cyber-primary rounded-lg
+                     hover:bg-cyber-primary/30 transition-colors mx-auto"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>重试</span>
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-cyber-bg bg-cyber-grid">
+      {/* 背景发光效果 */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyber-primary/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyber-secondary/5 rounded-full blur-3xl" />
+      </div>
+
+      <Header repoName={data?.repoKey} />
+
+      <main className="relative z-10 container mx-auto px-4 py-8">
+        {/* 项目搜索区域 - 更自然的设计 */}
+        <motion.div 
+          className="mb-8"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <ProjectSearch 
+            onSelectProject={handleProjectSelect}
+            currentProject={currentProject}
+          />
+        </motion.div>
+
+        {/* 数据信息 */}
+        {data?.groupedTimeseries && (
+          <motion.div 
+            className="mb-6 p-4 bg-cyber-card/30 rounded-lg border border-cyber-border"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-display font-bold text-cyber-primary">
+                  {data.repoKey}
+                </h2>
+                <p className="text-sm text-cyber-muted font-chinese">
+                  真实数据 · {data.groupedTimeseries.startMonth} 至 {data.groupedTimeseries.endMonth}
+                  · {data.groupedTimeseries.timeAxis.length} 个月
+                </p>
+              </div>
+              <button
+                onClick={fetchData}
+                className="flex items-center gap-2 px-4 py-2 text-cyber-muted hover:text-cyber-primary transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span className="text-sm">刷新</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* 统计卡片 */}
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <StatsCard
+            icon={<Activity className="w-6 h-6" />}
+            title="Star 数"
+            value={Math.round(stats.stars)}
+            change=""
+            color="primary"
+          />
+          <StatsCard
+            icon={<GitBranch className="w-6 h-6" />}
+            title="代码提交"
+            value={Math.round(stats.commits)}
+            change=""
+            color="success"
+          />
+          <StatsCard
+            icon={<TrendingUp className="w-6 h-6" />}
+            title="PR 接受"
+            value={Math.round(stats.prs)}
+            change=""
+            color="secondary"
+          />
+          <StatsCard
+            icon={<Users className="w-6 h-6" />}
+            title="参与者"
+            value={Math.round(stats.contributors)}
+            change=""
+            color="accent"
+          />
+        </motion.div>
+
+        {/* 标签页导航 */}
+        <motion.div 
+          className="flex gap-4 mb-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <TabButton
+            active={activeTab === 'timeseries'}
+            onClick={() => setActiveTab('timeseries')}
+            icon={<BarChart3 className="w-4 h-4" />}
+            label="时序分析"
+            badge={data?.groupedTimeseries?.groups ? Object.keys(data.groupedTimeseries.groups).length : 0}
+          />
+          <TabButton
+            active={activeTab === 'issues'}
+            onClick={() => setActiveTab('issues')}
+            icon={<FileText className="w-4 h-4" />}
+            label="Issue 分析"
+          />
+          <TabButton
+            active={activeTab === 'analysis'}
+            onClick={() => setActiveTab('analysis')}
+            icon={<AlertCircle className="w-4 h-4" />}
+            label="波动归因"
+            badge={data?.waves?.length || 0}
+          />
+        </motion.div>
+
+        {/* 主内容区 */}
+        <AnimatePresence mode="wait">
+          {activeTab === 'timeseries' && (
+            <motion.div
+              key="timeseries"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <GroupedTimeSeriesChart 
+                data={data?.groupedTimeseries as GroupedTimeSeriesData}
+                onMonthClick={handleMonthClick}
+              />
+            </motion.div>
+          )}
+          
+          {activeTab === 'issues' && (
+            <motion.div
+              key="issues"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <IssueAnalysis 
+                data={data?.issueCategories as IssueData[]}
+                keywords={data?.monthlyKeywords}
+                selectedMonth={selectedMonth}
+                onMonthSelect={setSelectedMonth}
+              />
+            </motion.div>
+          )}
+          
+          {activeTab === 'analysis' && (
+            <motion.div
+              key="analysis"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <WaveAnalysis 
+                waves={data?.waves as WaveData[]}
+                onWaveClick={(wave) => {
+                  setSelectedMonth(wave.month)
+                  setActiveTab('issues')
+                }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+    </div>
+  )
+}
+
+// 标签按钮组件
+function TabButton({ active, onClick, icon, label, badge }: {
+  active: boolean
+  onClick: () => void
+  icon: React.ReactNode
+  label: string
+  badge?: number
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-300
+        ${active 
+          ? 'bg-cyber-primary/20 text-cyber-primary border border-cyber-primary/50 glow-primary' 
+          : 'bg-cyber-card text-cyber-muted border border-cyber-border hover:border-cyber-primary/30 hover:text-cyber-text'
+        }
+      `}
+    >
+      {icon}
+      <span className="font-chinese">{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <span className={`
+          px-2 py-0.5 rounded-full text-xs font-mono
+          ${active ? 'bg-cyber-primary/30 text-cyber-primary' : 'bg-cyber-border text-cyber-muted'}
+        `}>
+          {badge}
+        </span>
+      )}
+    </button>
+  )
+}
+
+// 加载屏幕
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen bg-cyber-bg flex items-center justify-center">
+      <motion.div
+        className="flex flex-col items-center gap-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+      >
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-cyber-primary/30 rounded-full" />
+          <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-cyber-primary rounded-full animate-spin" />
+        </div>
+        <p className="text-cyber-muted font-chinese">正在加载真实数据...</p>
+        <p className="text-cyber-muted/50 font-chinese text-sm">请确保后端服务已启动</p>
+      </motion.div>
+    </div>
+  )
+}
+
+export default App

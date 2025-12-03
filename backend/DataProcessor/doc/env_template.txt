@@ -1,0 +1,24 @@
+# MaxKB 自动上传配置模板
+# 复制此文件为 .env 并填写实际值
+
+# MaxKB服务地址（默认：http://localhost:8080）
+MAXKB_URL=http://localhost:8080
+
+# MaxKB登录用户名（默认：admin）
+MAXKB_USERNAME=admin
+
+# MaxKB登录密码（必填：填写你的实际密码）
+MAXKB_PASSWORD=你的密码
+
+# MaxKB知识库ID（必填：从浏览器地址栏获取）
+# 进入知识库后，URL中 id= 后面的部分
+# 例如：http://localhost:8080/admin/knowledge/document/upload/default?id=019ae417-c380-7790-92e6-2fc017ed1652
+MAXKB_KNOWLEDGE_ID=019ae417-c380-7790-92e6-2fc017ed1652
+
+# 文档分块大小（可选，默认：500）
+# 文本会被分成多个块，每个块的大小（字符数）
+MAXKB_CHUNK_SIZE=500
+
+# GitHub Token（如果还没有配置的话）
+GITHUB_TOKEN=你的github_token
+
