@@ -4,28 +4,31 @@ import { Link } from 'react-router-dom'
 
 interface HeaderProps {
   repoName?: string
+  onBackToHome?: () => void
 }
 
-export default function Header({ repoName }: HeaderProps) {
+export default function Header({ repoName, onBackToHome }: HeaderProps) {
   return (
     <header className="relative border-b border-cyber-border bg-cyber-surface/80 backdrop-blur-xl">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <motion.div 
-            className="flex items-center gap-3"
+            className="flex items-center gap-3 cursor-pointer group"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
+            onClick={onBackToHome}
+            title={onBackToHome ? "返回首页" : undefined}
           >
             <div className="relative">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyber-primary via-cyber-secondary to-cyber-accent flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyber-primary via-cyber-secondary to-cyber-accent flex items-center justify-center transition-transform group-hover:scale-105">
                 <Database className="w-6 h-6 text-cyber-bg" />
               </div>
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-cyber-success rounded-full animate-pulse" />
             </div>
             <div>
-              <h1 className="text-2xl font-display font-bold gradient-text">
+              <h1 className="text-2xl font-display font-bold gradient-text group-hover:opacity-80 transition-opacity">
                 DataPulse
               </h1>
               <p className="text-xs text-cyber-muted font-chinese">

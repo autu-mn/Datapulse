@@ -3,13 +3,14 @@ DataPulse 后端 API
 GitHub 仓库生态画像分析平台 - 时序数据可视化与归因分析
 从真实数据文件读取，动态确定时间范围
 """
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response, stream_with_context
 from flask_cors import CORS
 import json
 import os
 from datetime import datetime
 from collections import defaultdict
 import re
+import threading
 from data_service import DataService
 from Agent.qa_agent import QAAgent
 
@@ -246,6 +247,156 @@ def ask_question():
         
         result = qa_agent.answer_question(question, project_name)
         return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/crawl', methods=['GET', 'POST'])
+def crawl_repository():
+    """爬取GitHub仓库并返回进度（SSE）"""
+    try:
+        # 支持GET和POST两种方式
+        if request.method == 'GET':
+            owner = request.args.get('owner', '').strip()
+            repo = request.args.get('repo', '').strip()
+            max_issues = int(request.args.get('max_issues', 100))
+            max_prs = int(request.args.get('max_prs', 100))
+            max_commits = int(request.args.get('max_commits', 100))
+        else:
+            data = request.json or {}
+            owner = data.get('owner', '').strip()
+            repo = data.get('repo', '').strip()
+            max_issues = data.get('max_issues', 100)
+            max_prs = data.get('max_prs', 100)
+            max_commits = data.get('max_commits', 100)
+        
+        if not owner or not repo:
+            return jsonify({'error': '请提供仓库所有者用户名和仓库名'}), 400
+        
+        def generate():
+            """生成SSE事件流"""
+            import sys
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'DataProcessor'))
+            from github_text_crawler import GitHubTextCrawler
+            
+            try:
+                # 发送开始事件
+                yield f"data: {json.dumps({'type': 'start', 'message': '开始爬取仓库数据...'})}\n\n"
+                
+                crawler = GitHubTextCrawler()
+                
+                # 定义进度步骤
+                progress_steps = [
+                    ('获取 OpenDigger 基础指标', 0),
+                    ('获取仓库核心信息', 1),
+                    ('获取 README', 2),
+                    ('获取 Issues', 3),
+                    ('获取 Pull Requests', 4),
+                    ('获取标签', 5),
+                    ('获取提交历史', 6),
+                    ('获取贡献者', 7),
+                    ('获取发布版本', 8),
+                    ('计算备用指标', 9),
+                ]
+                
+                # 包装爬取方法以发送进度
+                all_data = {}
+                missing_metrics = []
+                
+                crawler.check_rate_limit()
+                
+                # 步骤0: OpenDigger
+                yield f"data: {json.dumps({'type': 'progress', 'step': 0, 'stepName': progress_steps[0][0], 'message': '正在获取基础指标...', 'progress': 5})}\n\n"
+                from github_text_crawler import OpenDiggerMetrics
+                opendigger = OpenDiggerMetrics()
+                opendigger_data, missing_metrics = opendigger.get_metrics(owner, repo)
+                all_data['opendigger_metrics'] = opendigger_data
+                
+                # 步骤1: 仓库信息
+                yield f"data: {json.dumps({'type': 'progress', 'step': 1, 'stepName': progress_steps[1][0], 'message': '正在获取仓库信息...', 'progress': 15})}\n\n"
+                all_data['repo_info'] = crawler.get_repo_info(owner, repo)
+                
+                # 步骤2: README
+                yield f"data: {json.dumps({'type': 'progress', 'step': 2, 'stepName': progress_steps[2][0], 'message': '正在获取 README...', 'progress': 25})}\n\n"
+                all_data['readme'] = crawler.get_readme(owner, repo)
+                
+                # 步骤3: Issues
+                yield f"data: {json.dumps({'type': 'progress', 'step': 3, 'stepName': progress_steps[3][0], 'message': f'正在获取 Issues (最多 {max_issues} 个)...', 'progress': 35})}\n\n"
+                all_data['issues'] = crawler.get_issues(owner, repo, max_count=max_issues)
+                
+                # 步骤4: Pull Requests
+                yield f"data: {json.dumps({'type': 'progress', 'step': 4, 'stepName': progress_steps[4][0], 'message': f'正在获取 Pull Requests (最多 {max_prs} 个)...', 'progress': 45})}\n\n"
+                all_data['pulls'] = crawler.get_pulls(owner, repo, max_count=max_prs)
+                
+                # 步骤5: Labels
+                yield f"data: {json.dumps({'type': 'progress', 'step': 5, 'stepName': progress_steps[5][0], 'message': '正在获取标签...', 'progress': 55})}\n\n"
+                all_data['labels'] = crawler.get_labels(owner, repo)
+                
+                # 步骤6: Commits
+                yield f"data: {json.dumps({'type': 'progress', 'step': 6, 'stepName': progress_steps[6][0], 'message': f'正在获取提交历史 (最多 {max_commits} 个)...', 'progress': 65})}\n\n"
+                all_data['commits'] = crawler.get_commits(owner, repo, max_count=max_commits)
+                
+                # 步骤7: Contributors
+                yield f"data: {json.dumps({'type': 'progress', 'step': 7, 'stepName': progress_steps[7][0], 'message': '正在获取贡献者...', 'progress': 75})}\n\n"
+                all_data['contributors'] = crawler.get_contributors(owner, repo)
+                
+                # 步骤8: Releases
+                yield f"data: {json.dumps({'type': 'progress', 'step': 8, 'stepName': progress_steps[8][0], 'message': '正在获取发布版本...', 'progress': 80})}\n\n"
+                all_data['releases'] = crawler.get_releases(owner, repo)
+                
+                # 步骤9: 备用指标
+                if missing_metrics:
+                    yield f"data: {json.dumps({'type': 'progress', 'step': 9, 'stepName': progress_steps[9][0], 'message': '正在计算备用指标...', 'progress': 85})}\n\n"
+                    fallback_metrics = crawler.calculate_fallback_metrics(
+                        owner, repo,
+                        all_data.get('issues', []),
+                        all_data.get('pulls', []),
+                        all_data.get('commits', []),
+                        all_data.get('repo_info')
+                    )
+                    all_data['fallback_metrics'] = fallback_metrics
+                
+                # 保存数据
+                yield f"data: {json.dumps({'type': 'progress', 'step': 10, 'stepName': '保存数据', 'message': '正在保存数据文件...', 'progress': 90})}\n\n"
+                json_file = crawler.save_to_json(all_data, owner, repo)
+                
+                # 处理数据
+                yield f"data: {json.dumps({'type': 'progress', 'step': 11, 'stepName': '处理数据', 'message': '正在处理数据并上传到MaxKB...', 'progress': 95})}\n\n"
+                crawler.process_data(json_file, enable_maxkb_upload=True)
+                
+                # 重新加载数据到data_service
+                project_name = f"{owner}_{repo}"
+                yield f"data: {json.dumps({'type': 'progress', 'step': 12, 'stepName': '加载数据', 'message': '正在加载到系统...', 'progress': 98})}\n\n"
+                
+                # 查找并加载新生成的processed文件夹
+                import glob
+                data_dir = os.path.join(os.path.dirname(__file__), 'DataProcessor', 'data')
+                project_dir = os.path.join(data_dir, project_name)
+                
+                if os.path.exists(project_dir):
+                    processed_folders = glob.glob(os.path.join(project_dir, '*_processed'))
+                    if processed_folders:
+                        # 使用最新的processed文件夹
+                        latest_processed = sorted(processed_folders)[-1]
+                        # 加载数据
+                        data_service._load_processed_data(project_name, latest_processed)
+                        # 同时加载owner/repo格式
+                        data_service._load_processed_data(f"{owner}/{repo}", latest_processed)
+                
+                # 完成
+                yield f"data: {json.dumps({'type': 'complete', 'message': '爬取和处理完成！', 'projectName': project_name, 'progress': 100})}\n\n"
+                
+            except Exception as e:
+                import traceback
+                error_msg = str(e)
+                traceback.print_exc()
+                yield f"data: {json.dumps({'type': 'error', 'message': f'发生错误: {error_msg}'})}\n\n"
+        
+        response = Response(stream_with_context(generate()), mimetype='text/event-stream')
+        response.headers['Cache-Control'] = 'no-cache'
+        response.headers['X-Accel-Buffering'] = 'no'
+        return response
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

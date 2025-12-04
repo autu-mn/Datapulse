@@ -81,10 +81,28 @@ class MaxKBUploader:
                     
                     if response.status_code == 200:
                         # 尝试从响应中获取token
-                        result = response.json()
+                        try:
+                            result = response.json()
+                        except:
+                            result = None
+                        
+                        if result is None:
+                            # 可能没有返回JSON，尝试使用Cookie
+                            cookies = response.cookies
+                            if cookies:
+                                self.session.cookies.update(cookies)
+                                print(f"[OK] MaxKB登录成功（使用Cookie认证）")
+                                return True
+                            continue
                         
                         # 可能的token字段名
-                        token = result.get('token') or result.get('access_token') or result.get('data', {}).get('token')
+                        token = None
+                        if isinstance(result, dict):
+                            token = result.get('token') or result.get('access_token')
+                            if not token and result.get('data'):
+                                data = result.get('data')
+                                if isinstance(data, dict):
+                                    token = data.get('token')
                         
                         if token:
                             self.token = token

@@ -79,16 +79,100 @@ class OpenDiggerMetrics:
 
 class GitHubTextCrawler:
     def __init__(self):
-        self.token = os.getenv('GITHUB_TOKEN')
-        if not self.token:
-            raise ValueError("未找到 GITHUB_TOKEN，请在 .env 文件中配置")
+        # 支持多个 GitHub Token 轮换
+        self.tokens = []
+        self.current_token_index = 0
         
+        # 尝试加载多个 token
+        token = os.getenv('GITHUB_TOKEN')
+        token_1 = os.getenv('GITHUB_TOKEN_1')
+        token_2 = os.getenv('GITHUB_TOKEN_2')
+        
+        if token:
+            self.tokens.append(token)
+        if token_1:
+            self.tokens.append(token_1)
+        if token_2:
+            self.tokens.append(token_2)
+        
+        if not self.tokens:
+            raise ValueError("未找到 GITHUB_TOKEN，请在 .env 文件中配置 GITHUB_TOKEN、GITHUB_TOKEN_1 或 GITHUB_TOKEN_2")
+        
+        self.token = self.tokens[0]
         self.headers = {
             'Authorization': f'token {self.token}',
             'Accept': 'application/vnd.github.v3+json'
         }
         self.base_url = 'https://api.github.com'
         self.rate_limit_remaining = 5000
+        
+        print(f"✓ 已加载 {len(self.tokens)} 个 GitHub Token")
+    
+    def switch_token(self):
+        """切换到下一个可用的 token"""
+        if len(self.tokens) <= 1:
+            print("⚠ 只有一个 token，无法切换")
+            return False
+        
+        self.current_token_index = (self.current_token_index + 1) % len(self.tokens)
+        self.token = self.tokens[self.current_token_index]
+        self.headers = {
+            'Authorization': f'token {self.token}',
+            'Accept': 'application/vnd.github.v3+json'
+        }
+        print(f"✓ 已切换到 Token #{self.current_token_index + 1}")
+        return True
+    
+    def safe_request(self, url, max_retries=3, **kwargs):
+        """带重试和 token 轮换的安全请求方法"""
+        retries = 0
+        last_error = None
+        
+        while retries < max_retries:
+            try:
+                # 添加超时设置
+                if 'timeout' not in kwargs:
+                    kwargs['timeout'] = 30
+                
+                response = requests.get(url, headers=self.headers, **kwargs)
+                
+                # 检查是否需要切换 token（rate limit）
+                if response.status_code == 403:
+                    rate_limit = response.headers.get('X-RateLimit-Remaining', '0')
+                    if rate_limit == '0':
+                        print(f"⚠ Token #{self.current_token_index + 1} 已达到 API 限制")
+                        if self.switch_token():
+                            retries += 1
+                            time.sleep(2)
+                            continue
+                
+                return response
+                
+            except (requests.exceptions.SSLError, 
+                    requests.exceptions.ConnectionError,
+                    requests.exceptions.Timeout) as e:
+                last_error = e
+                retries += 1
+                print(f"⚠ 网络错误 (尝试 {retries}/{max_retries}): {type(e).__name__}")
+                
+                # 如果有多个 token，尝试切换
+                if len(self.tokens) > 1 and retries < max_retries:
+                    self.switch_token()
+                
+                # 等待后重试
+                wait_time = min(2 ** retries, 10)  # 指数退避，最多10秒
+                print(f"  等待 {wait_time} 秒后重试...")
+                time.sleep(wait_time)
+            
+            except Exception as e:
+                print(f"✗ 请求失败: {str(e)}")
+                raise
+        
+        # 所有重试都失败
+        if last_error:
+            print(f"✗ 请求失败，已重试 {max_retries} 次")
+            print(f"  最后错误: {type(last_error).__name__}: {str(last_error)}")
+        return None
     
     def calculate_fallback_metrics(self, owner, repo, issues_data, pulls_data, commits_data, repo_info):
         """当 OpenDigger 没有数据时，通过 GitHub API 计算基础指标"""
@@ -175,7 +259,9 @@ class GitHubTextCrawler:
     def check_rate_limit(self):
         """检查 API 限流状态"""
         url = f"{self.base_url}/rate_limit"
-        response = requests.get(url, headers=self.headers)
+        response = self.safe_request(url)
+        if not response:
+            return
         if response.status_code == 200:
             data = response.json()
             self.rate_limit_remaining = data['resources']['core']['remaining']
@@ -188,7 +274,9 @@ class GitHubTextCrawler:
     def get_repo_info(self, owner, repo):
         """获取仓库基本信息"""
         url = f"{self.base_url}/repos/{owner}/{repo}"
-        response = requests.get(url, headers=self.headers)
+        response = self.safe_request(url)
+        if not response:
+            return None
         
         if response.status_code == 200:
             data = response.json()
@@ -214,7 +302,9 @@ class GitHubTextCrawler:
     def get_readme(self, owner, repo):
         """获取 README 内容"""
         url = f"{self.base_url}/repos/{owner}/{repo}/readme"
-        response = requests.get(url, headers=self.headers)
+        response = self.safe_request(url)
+        if not response:
+            return None
         
         if response.status_code == 200:
             data = response.json()
@@ -291,7 +381,9 @@ class GitHubTextCrawler:
     def get_issue_comments(self, owner, repo, issue_number):
         """获取指定 Issue 的所有评论"""
         url = f"{self.base_url}/repos/{owner}/{repo}/issues/{issue_number}/comments"
-        response = requests.get(url, headers=self.headers)
+        response = self.safe_request(url)
+        if not response:
+            return []
         
         if response.status_code == 200:
             comments = response.json()
@@ -369,8 +461,8 @@ class GitHubTextCrawler:
         
         # 获取普通评论
         url = f"{self.base_url}/repos/{owner}/{repo}/issues/{pr_number}/comments"
-        response = requests.get(url, headers=self.headers)
-        if response.status_code == 200:
+        response = self.safe_request(url)
+        if response and response.status_code == 200:
             for comment in response.json():
                 comments.append({
                     'type': 'comment',
@@ -381,8 +473,8 @@ class GitHubTextCrawler:
         
         # 获取 Review 评论
         url = f"{self.base_url}/repos/{owner}/{repo}/pulls/{pr_number}/reviews"
-        response = requests.get(url, headers=self.headers)
-        if response.status_code == 200:
+        response = self.safe_request(url)
+        if response and response.status_code == 200:
             for review in response.json():
                 if review.get('body'):
                     comments.append({
@@ -398,7 +490,9 @@ class GitHubTextCrawler:
     def get_labels(self, owner, repo):
         """获取仓库的所有标签"""
         url = f"{self.base_url}/repos/{owner}/{repo}/labels"
-        response = requests.get(url, headers=self.headers)
+        response = self.safe_request(url)
+        if not response:
+            return []
         
         if response.status_code == 200:
             labels = response.json()
@@ -459,7 +553,9 @@ class GitHubTextCrawler:
     def get_contributors(self, owner, repo):
         """获取贡献者列表"""
         url = f"{self.base_url}/repos/{owner}/{repo}/contributors"
-        response = requests.get(url, headers=self.headers)
+        response = self.safe_request(url)
+        if not response:
+            return []
         
         if response.status_code == 200:
             contributors = response.json()
@@ -473,7 +569,9 @@ class GitHubTextCrawler:
     def get_releases(self, owner, repo):
         """获取发布版本信息"""
         url = f"{self.base_url}/repos/{owner}/{repo}/releases"
-        response = requests.get(url, headers=self.headers)
+        response = self.safe_request(url)
+        if not response:
+            return []
         
         if response.status_code == 200:
             releases = response.json()

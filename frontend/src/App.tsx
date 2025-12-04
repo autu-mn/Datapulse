@@ -7,41 +7,48 @@ import WaveAnalysis from './components/WaveAnalysis'
 import Header from './components/Header'
 import StatsCard from './components/StatsCard'
 import ProjectSearch from './components/ProjectSearch'
+import HomePage from './components/HomePage'
 import type { DemoData, GroupedTimeSeriesData, IssueData, WaveData } from './types'
 
 function App() {
   const [data, setData] = useState<DemoData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'timeseries' | 'issues' | 'analysis'>('timeseries')
   const [currentProject, setCurrentProject] = useState<string>('')
+  const [showHomePage, setShowHomePage] = useState(true)
 
   useEffect(() => {
-    // 默认加载X-lab2017_open-digger项目
-    handleProjectSelect('X-lab2017_open-digger')
-  }, [])
-
-  useEffect(() => {
-    if (currentProject) {
+    // 如果已经有项目且不在首页，加载数据
+    if (currentProject && !showHomePage) {
       fetchData()
     }
-  }, [currentProject])
+  }, [currentProject, showHomePage])
 
   const handleProjectSelect = (projectName: string) => {
     setCurrentProject(projectName)
     setError(null)
+    setShowHomePage(false)
   }
 
-  const fetchData = async () => {
-    if (!currentProject) return
-    
+  const handleProjectReady = (projectName: string) => {
+    console.log('项目准备完成:', projectName)
+    setCurrentProject(projectName)
+    setShowHomePage(false)
+    // 立即加载数据
+    setTimeout(() => {
+      fetchDataForProject(projectName)
+    }, 100)
+  }
+
+  const fetchDataForProject = async (projectName: string) => {
     setLoading(true)
     setError(null)
     
     try {
       // 使用项目名称获取数据
-      const response = await fetch(`/api/repo/${encodeURIComponent(currentProject)}/summary`)
+      const response = await fetch(`/api/repo/${encodeURIComponent(projectName)}/summary`)
       const summary = await response.json()
       
       if (summary.error) {
@@ -50,19 +57,19 @@ function App() {
       }
 
       // 获取时序数据
-      const timeseriesResponse = await fetch(`/api/timeseries/grouped/${encodeURIComponent(currentProject)}`)
+      const timeseriesResponse = await fetch(`/api/timeseries/grouped/${encodeURIComponent(projectName)}`)
       const timeseriesData = await timeseriesResponse.json()
       
       // 获取Issue数据
-      const issuesResponse = await fetch(`/api/issues/${encodeURIComponent(currentProject)}`)
+      const issuesResponse = await fetch(`/api/issues/${encodeURIComponent(projectName)}`)
       const issuesData = await issuesResponse.json()
       
       // 获取波动分析
-      const analysisResponse = await fetch(`/api/analysis/${encodeURIComponent(currentProject)}`)
+      const analysisResponse = await fetch(`/api/analysis/${encodeURIComponent(projectName)}`)
       const analysisData = await analysisResponse.json()
       
       setData({
-        repoKey: currentProject,
+        repoKey: projectName,
         groupedTimeseries: timeseriesData,
         issueCategories: issuesData.categories || [],
         monthlyKeywords: issuesData.monthlyKeywords || {},
@@ -73,6 +80,12 @@ function App() {
       console.error('Error fetching data:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchData = async () => {
+    if (currentProject) {
+      await fetchDataForProject(currentProject)
     }
   }
 
@@ -122,6 +135,11 @@ function App() {
 
   const stats = getStats()
 
+  // 显示首页
+  if (showHomePage) {
+    return <HomePage onProjectReady={handleProjectReady} />
+  }
+
   if (loading) {
     return <LoadingScreen />
   }
@@ -161,7 +179,7 @@ function App() {
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyber-secondary/5 rounded-full blur-3xl" />
       </div>
 
-      <Header repoName={data?.repoKey} />
+      <Header repoName={data?.repoKey} onBackToHome={() => setShowHomePage(true)} />
 
       <main className="relative z-10 container mx-auto px-4 py-8">
         {/* 项目搜索区域 - 更自然的设计 */}

@@ -5,16 +5,29 @@ import os
 import json
 from typing import Dict, List, Optional
 
+# 尝试导入 DeepSeek 客户端
+try:
+    from .deepseek_client import DeepSeekClient
+    DEEPSEEK_AVAILABLE = True
+except ImportError:
+    try:
+        from deepseek_client import DeepSeekClient
+        DEEPSEEK_AVAILABLE = True
+    except ImportError:
+        DEEPSEEK_AVAILABLE = False
+        print("⚠ DeepSeek 客户端未找到，将使用规则匹配模式")
+
 
 class QAAgent:
     """项目数据问答Agent"""
     
-    def __init__(self, data_dir: str = None):
+    def __init__(self, data_dir: str = None, use_ai: bool = True):
         """
         初始化问答Agent
         
         Args:
             data_dir: 数据目录路径
+            use_ai: 是否使用 AI（DeepSeek）进行问答
         """
         if data_dir is None:
             # 默认数据目录
@@ -24,6 +37,18 @@ class QAAgent:
             self.data_dir = data_dir
         
         self.project_cache = {}
+        self.use_ai = use_ai and DEEPSEEK_AVAILABLE
+        
+        # 初始化 DeepSeek 客户端
+        if self.use_ai:
+            try:
+                self.deepseek = DeepSeekClient()
+                print("✓ DeepSeek AI 已启用")
+            except Exception as e:
+                print(f"⚠ DeepSeek 初始化失败: {e}，将使用规则匹配模式")
+                self.use_ai = False
+        else:
+            self.deepseek = None
     
     def load_project_data(self, project_name: str) -> Optional[Dict]:
         """
@@ -97,6 +122,11 @@ class QAAgent:
                 'confidence': 0.0
             }
         
+        # 如果启用了 AI，使用 DeepSeek 回答
+        if self.use_ai and self.deepseek:
+            return self._answer_with_ai(data, question, project_name)
+        
+        # 否则使用规则匹配
         question_lower = question.lower()
         
         # 项目基本信息问题
@@ -117,6 +147,47 @@ class QAAgent:
         
         # 默认回答
         return self._answer_general(data, question)
+    
+    def _answer_with_ai(self, data: Dict, question: str, project_name: str) -> Dict:
+        """使用 DeepSeek AI 回答问题"""
+        summary = data.get('summary', {})
+        
+        # 构建上下文
+        context_parts = []
+        context_parts.append(f"项目名称: {project_name}")
+        context_parts.append(f"文档总数: {summary.get('text_documents_count', 0)}")
+        context_parts.append(f"时序指标数: {summary.get('timeseries_metrics_count', 0)}")
+        
+        # 添加文档类型统计
+        by_type = summary.get('text_documents_by_type', {})
+        if by_type:
+            context_parts.append("文档类型分布:")
+            for doc_type, count in by_type.items():
+                context_parts.append(f"  - {doc_type}: {count}")
+        
+        # 添加部分文本数据（限制长度）
+        text_data = data.get('text_data', [])
+        if text_data:
+            context_parts.append("\n项目相关文本数据（部分）:")
+            for i, doc in enumerate(text_data[:3]):  # 只取前3个文档
+                doc_type = doc.get('type', 'unknown')
+                content = doc.get('content', '')[:500]  # 限制内容长度
+                context_parts.append(f"\n文档{i+1} ({doc_type}):\n{content}")
+        
+        context = "\n".join(context_parts)
+        
+        # 调用 DeepSeek
+        try:
+            answer = self.deepseek.ask(question, context)
+            return {
+                'answer': answer,
+                'sources': ['DeepSeek AI 分析'],
+                'confidence': 0.9
+            }
+        except Exception as e:
+            print(f"[ERROR] DeepSeek 调用失败: {e}")
+            # 降级到规则匹配
+            return self._answer_general(data, question)
     
     def _answer_basic_info(self, data: Dict, question: str) -> Dict:
         """回答基本信息问题"""
