@@ -2,7 +2,7 @@
 
 ## 功能特点
 
-- **数据采集**：自动爬取 GitHub 仓库数据（Issues、PRs、Commits 等，但是有缺失值，issue、PR、commit太多了，用处不大）
+- **数据采集**：自动爬取 GitHub 仓库数据（Issues、PRs、Commits 等，但是有缺失值，issue、PR、commit太多了，用处不大。目前只用README.md和DOCS试试）
 - **可视化展示**：数据展示（不好看，不完善，有缺失）
 - **模型集成**： MaxKB 知识库 + Deepseek 大语言模型 + ALI 分词模型（效果一般，还没接到前端）
 - **时序分析**：未完成

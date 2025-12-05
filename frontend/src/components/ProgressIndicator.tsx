@@ -15,16 +15,13 @@ interface ProgressIndicatorProps {
 const stepNames = [
   '获取 OpenDigger 基础指标',
   '获取仓库核心信息',
-  '获取 README',
-  '获取 Issues',
-  '获取 Pull Requests',
-  '获取标签',
-  '获取提交历史',
-  '获取贡献者',
-  '获取发布版本',
+  '获取 README（中英文）',
+  '获取文档文件和重要 Markdown',
+  '获取标签和贡献者',
   '计算备用指标',
   '保存数据',
   '处理数据',
+  '加载数据',
   '完成'
 ]
 

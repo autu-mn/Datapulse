@@ -27,8 +27,22 @@ export default function HomePage({ onProjectReady }: HomePageProps) {
     setProgress(null)
 
     try {
+      // 先检查数据是否已存在
+      const checkResponse = await fetch(
+        `/api/check_project?owner=${encodeURIComponent(owner.trim())}&repo=${encodeURIComponent(repo.trim())}`
+      )
+      const checkData = await checkResponse.json()
+      
+      if (checkData.exists) {
+        // 数据已存在，直接使用
+        setLoading(false)
+        onProjectReady(checkData.projectName || `${owner.trim()}_${repo.trim()}`)
+        return
+      }
+
+      // 数据不存在，开始爬取
       const eventSource = new EventSource(
-        `/api/crawl?owner=${encodeURIComponent(owner.trim())}&repo=${encodeURIComponent(repo.trim())}&max_issues=100&max_prs=100&max_commits=100`
+        `/api/crawl?owner=${encodeURIComponent(owner.trim())}&repo=${encodeURIComponent(repo.trim())}`
       )
 
       eventSource.onmessage = (event) => {
@@ -40,7 +54,7 @@ export default function HomePage({ onProjectReady }: HomePageProps) {
           } else if (data.type === 'progress') {
             setProgress({ step: data.step, stepName: data.stepName, message: data.message, progress: data.progress })
           } else if (data.type === 'complete') {
-            setProgress({ step: 12, stepName: '完成', message: data.message, progress: 100 })
+            setProgress({ step: 9, stepName: '完成', message: data.message, progress: 100 })
             setLoading(false)
             eventSource.close()
             setTimeout(() => onProjectReady(data.projectName), 1500)

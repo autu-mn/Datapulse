@@ -163,13 +163,30 @@ class DataService:
         
         # 加载时序数据
         if os.path.exists(timeseries_file):
-            with open(timeseries_file, 'r', encoding='utf-8') as f:
-                self.loaded_timeseries[repo_key] = json.load(f)
+            try:
+                with open(timeseries_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        self.loaded_timeseries[repo_key] = data
+                    elif isinstance(data, list):
+                        timeseries_dict = {}
+                        for item in data:
+                            if isinstance(item, dict):
+                                for key, value in item.items():
+                                    if key != 'date' and key not in timeseries_dict:
+                                        timeseries_dict[key] = {'raw': {}}
+                        if timeseries_dict:
+                            self.loaded_timeseries[repo_key] = timeseries_dict
+            except Exception as e:
+                print(f"加载时序数据失败 {repo_key}: {e}")
         
         # 加载文本数据
         if os.path.exists(text_file):
-            with open(text_file, 'r', encoding='utf-8') as f:
-                self.loaded_text[repo_key] = json.load(f)
+            try:
+                with open(text_file, 'r', encoding='utf-8') as f:
+                    self.loaded_text[repo_key] = json.load(f)
+            except Exception as e:
+                print(f"加载文本数据失败 {repo_key}: {e}")
     
     def _generate_time_range(self, start, end):
         """生成时间范围列表 (YYYY-MM 格式)"""
@@ -188,10 +205,17 @@ class DataService:
     
     def _extract_time_range_from_data(self, timeseries_data):
         """从时序数据中提取时间范围"""
+        if not isinstance(timeseries_data, dict):
+            return [], None, None
+        
         all_months = set()
         
         for metric_name, metric_data in timeseries_data.items():
+            if not isinstance(metric_data, dict):
+                continue
             raw_data = metric_data.get('raw', {})
+            if not isinstance(raw_data, dict):
+                continue
             for key in raw_data.keys():
                 # 只提取 YYYY-MM 格式的月份数据
                 if re.match(r'^\d{4}-\d{2}$', key):
@@ -707,6 +731,49 @@ class DataService:
         
         if actual_key in self.loaded_text:
             text_data = self.loaded_text[actual_key]
+            
+            # 提取仓库基本信息
+            for doc in text_data:
+                if doc.get('type') == 'repo_info':
+                    content = doc.get('content', '')
+                    repo_info = {}
+                    
+                    # 解析仓库信息
+                    lines = content.split('\n')
+                    for line in lines:
+                        if ':' in line:
+                            key, value = line.split(':', 1)
+                            key = key.strip()
+                            value = value.strip()
+                            
+                            if key == '仓库名称':
+                                repo_info['full_name'] = value
+                            elif key == '描述':
+                                repo_info['description'] = value
+                            elif key == '主页':
+                                repo_info['homepage'] = value
+                            elif key == '编程语言':
+                                repo_info['language'] = value
+                            elif key == 'Star数':
+                                repo_info['stars'] = int(value) if value.isdigit() else 0
+                            elif key == 'Fork数':
+                                repo_info['forks'] = int(value) if value.isdigit() else 0
+                            elif key == 'Watcher数':
+                                repo_info['watchers'] = int(value) if value.isdigit() else 0
+                            elif key == '开放Issue数':
+                                repo_info['open_issues'] = int(value) if value.isdigit() else 0
+                            elif key == '创建时间':
+                                repo_info['created_at'] = value
+                            elif key == '更新时间':
+                                repo_info['updated_at'] = value
+                            elif key == '许可证':
+                                repo_info['license'] = value
+                            elif key == '标签':
+                                repo_info['topics'] = [t.strip() for t in value.split(',') if t.strip()]
+                    
+                    if repo_info:
+                        summary['repoInfo'] = repo_info
+                    break
             summary['textStats'] = {
                 'total': len(text_data),
                 'issues': sum(1 for d in text_data if d.get('type') == 'issue'),

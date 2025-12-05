@@ -8,6 +8,7 @@ import Header from './components/Header'
 import StatsCard from './components/StatsCard'
 import ProjectSearch from './components/ProjectSearch'
 import HomePage from './components/HomePage'
+import RepoHeader from './components/RepoHeader'
 import type { DemoData, GroupedTimeSeriesData, IssueData, WaveData } from './types'
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<'timeseries' | 'issues' | 'analysis'>('timeseries')
   const [currentProject, setCurrentProject] = useState<string>('')
   const [showHomePage, setShowHomePage] = useState(true)
+  const [repoInfo, setRepoInfo] = useState<any>(null)
 
   useEffect(() => {
     // 如果已经有项目且不在首页，加载数据
@@ -47,30 +49,52 @@ function App() {
     setError(null)
     
     try {
-      // 使用项目名称获取数据
-      const response = await fetch(`/api/repo/${encodeURIComponent(projectName)}/summary`)
+      // 先等待一下，确保数据已加载
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // 使用项目名称获取数据（支持两种格式）
+      const repoKey = projectName.includes('/') ? projectName : projectName.replace('_', '/')
+      const response = await fetch(`/api/repo/${encodeURIComponent(repoKey)}/summary`)
       const summary = await response.json()
       
       if (summary.error) {
         setError(summary.error)
+        setLoading(false)
         return
+      }
+      
+      // 保存仓库信息用于展示
+      if (summary.repoInfo) {
+        setRepoInfo(summary.repoInfo)
       }
 
       // 获取时序数据
-      const timeseriesResponse = await fetch(`/api/timeseries/grouped/${encodeURIComponent(projectName)}`)
+      const timeseriesResponse = await fetch(`/api/timeseries/grouped/${encodeURIComponent(repoKey)}`)
       const timeseriesData = await timeseriesResponse.json()
       
+      if (timeseriesData.error) {
+        console.warn('时序数据获取失败:', timeseriesData.error)
+      }
+      
       // 获取Issue数据
-      const issuesResponse = await fetch(`/api/issues/${encodeURIComponent(projectName)}`)
+      const issuesResponse = await fetch(`/api/issues/${encodeURIComponent(repoKey)}`)
       const issuesData = await issuesResponse.json()
       
+      if (issuesData.error) {
+        console.warn('Issue数据获取失败:', issuesData.error)
+      }
+      
       // 获取波动分析
-      const analysisResponse = await fetch(`/api/analysis/${encodeURIComponent(projectName)}`)
+      const analysisResponse = await fetch(`/api/analysis/${encodeURIComponent(repoKey)}`)
       const analysisData = await analysisResponse.json()
+      
+      if (analysisData.error) {
+        console.warn('分析数据获取失败:', analysisData.error)
+      }
       
       setData({
         repoKey: projectName,
-        groupedTimeseries: timeseriesData,
+        groupedTimeseries: timeseriesData.error ? null : timeseriesData,
         issueCategories: issuesData.categories || [],
         monthlyKeywords: issuesData.monthlyKeywords || {},
         waves: analysisData.waves || []
@@ -183,6 +207,9 @@ function App() {
 
       <main className="relative z-10 container mx-auto px-4 py-8">
         {/* 项目搜索区域 - 更自然的设计 */}
+        {/* 仓库信息头部 */}
+        {repoInfo && <RepoHeader repoInfo={repoInfo} />}
+        
         <motion.div 
           className="mb-8"
           initial={{ opacity: 0, y: -10 }}
