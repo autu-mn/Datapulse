@@ -16,11 +16,46 @@ class GitHubAPIMetrics:
     
     def __init__(self, token=None):
         self.base_url = "https://api.github.com"
-        self.token = token or os.getenv('GITHUB_TOKEN')
+        
+        # 支持多Token轮换
+        self.tokens = []
+        self.current_token_index = 0
+        
+        if token:
+            self.tokens.append(token)
+        else:
+            # 从环境变量加载多个Token
+            token = os.getenv('GITHUB_TOKEN')
+            token_1 = os.getenv('GITHUB_TOKEN_1')
+            token_2 = os.getenv('GITHUB_TOKEN_2')
+            
+            # 按顺序添加Token
+            if token:
+                self.tokens.append(token)
+            if token_1:
+                self.tokens.append(token_1)
+            if token_2:
+                self.tokens.append(token_2)
+        
+        if not self.tokens:
+            print("  ⚠ 警告: 未找到 GITHUB_TOKEN/GITHUB_TOKEN_1/GITHUB_TOKEN_2，API请求可能受限")
+            self.token = None
+        else:
+            self.token = self.tokens[0]
+            print(f"  [INFO] 已加载 {len(self.tokens)} 个 GitHub Token")
+        
         self.headers = {}
         if self.token:
             self.headers['Authorization'] = f'token {self.token}'
         self.headers['Accept'] = 'application/vnd.github.v3+json'
+    
+    def switch_token(self):
+        """切换到下一个Token（用于速率限制时）"""
+        if len(self.tokens) > 1:
+            self.current_token_index = (self.current_token_index + 1) % len(self.tokens)
+            self.token = self.tokens[self.current_token_index]
+            self.headers['Authorization'] = f'token {self.token}'
+            print(f"  [INFO] 切换到 Token {self.current_token_index + 1}/{len(self.tokens)}")
     
     def _safe_request(self, url, params=None):
         """安全的API请求，带重试"""
@@ -30,15 +65,36 @@ class GitHubAPIMetrics:
                 if response.status_code == 200:
                     return response
                 elif response.status_code == 403:  # Rate limit
-                    time.sleep(60)
-                    continue
+                    # 尝试切换Token
+                    if len(self.tokens) > 1:
+                        print(f"  ⚠ Rate limit reached, 尝试切换Token...")
+                        self.switch_token()
+                        continue
+                    else:
+                        print(f"  ⚠ Rate limit reached, waiting 60s...")
+                        time.sleep(60)
+                        continue
+                elif response.status_code == 401:  # Unauthorized
+                    print(f"  ⚠ 认证失败 (401): 请检查 GITHUB_TOKEN 是否正确")
+                    return None
+                elif response.status_code == 404:  # Not Found
+                    print(f"  ⚠ 资源不存在 (404): {url}")
+                    return None
                 else:
+                    print(f"  ⚠ API请求失败: 状态码 {response.status_code}, URL: {url}")
+                    if response.status_code == 403:
+                        # 尝试读取rate limit信息
+                        try:
+                            rate_limit = response.headers.get('X-RateLimit-Remaining', 'unknown')
+                            print(f"    剩余请求次数: {rate_limit}")
+                        except:
+                            pass
                     return None
             except Exception as e:
                 if attempt < 2:
                     time.sleep(2)
                     continue
-                print(f"  ⚠ API请求失败: {str(e)}")
+                print(f"  ⚠ API请求异常: {str(e)}, URL: {url}")
                 return None
         return None
     
@@ -73,6 +129,11 @@ class GitHubAPIMetrics:
             
             response = self._safe_request(url, params)
             if not response:
+                if page == 1:
+                    print(f"    ⚠ 无法获取 Issue 数据，可能的原因：")
+                    print(f"      1. GitHub Token 未配置或无效")
+                    print(f"      2. 仓库不存在或无访问权限")
+                    print(f"      3. API 速率限制")
                 break
             
             issues = response.json()
@@ -138,6 +199,11 @@ class GitHubAPIMetrics:
             
             response = self._safe_request(url, params)
             if not response:
+                if page == 1:
+                    print(f"    ⚠ 无法获取 PR 数据，可能的原因：")
+                    print(f"      1. GitHub Token 未配置或无效")
+                    print(f"      2. 仓库不存在或无访问权限")
+                    print(f"      3. API 速率限制")
                 break
             
             prs = response.json()
@@ -186,6 +252,11 @@ class GitHubAPIMetrics:
             
             response = self._safe_request(url, params)
             if not response:
+                if page == 1:
+                    print(f"    ⚠ 无法获取 Commit 数据，可能的原因：")
+                    print(f"      1. GitHub Token 未配置或无效")
+                    print(f"      2. 仓库不存在或无访问权限")
+                    print(f"      3. API 速率限制")
                 break
             
             commits = response.json()
