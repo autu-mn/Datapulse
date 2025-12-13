@@ -64,29 +64,14 @@ def crawl_project_monthly(owner: str, repo: str, max_per_month: int = 3, enable_
     if missing_metrics:
         print(f"  ⚠ 缺失指标: {', '.join(missing_metrics[:5])}{'...' if len(missing_metrics) > 5 else ''}")
     
-    # 生成月份列表（用于补充缺失指标）
+    # 生成月份列表（用于后续处理）
     monthly_crawler = MonthlyCrawler()
     months = monthly_crawler.generate_month_list(owner, repo)
     
-    # 使用GitHub API补充缺失的指标（优先级：OpenDigger > GitHub API > 0填充）
-    if missing_metrics:
-        print(f"\n  → 使用GitHub API补充缺失指标（优先级策略）...")
-        from .github_metrics_supplement import GitHubMetricsSupplement
-        supplement = GitHubMetricsSupplement()
-        supplemented_metrics = supplement.supplement_missing_metrics(owner, repo, opendigger_data, months)
-        
-        # 合并补充的指标到OpenDigger数据中
-        for metric_name, metric_data in supplemented_metrics.items():
-            if metric_name not in opendigger_data:
-                # 完全缺失的指标，直接添加
-                opendigger_data[metric_name] = metric_data
-                print(f"  ✓ 已用GitHub API补充（完全缺失）: {metric_name}")
-            else:
-                # 部分缺失的指标，更新缺失的月份
-                opendigger_data[metric_name] = metric_data
-                print(f"  ✓ 已用GitHub API补充（部分缺失）: {metric_name}")
+    # 注意：已移除6个效率指标的GitHub API补充逻辑（Issue响应时间、Issue解决时长、Issue存活时间、PR响应时间、PR处理时长、PR存活时间）
+    # 这些指标如果OpenDigger没有数据，将直接用0填充（用于模型训练）
     
-    print(f"  ✓ 指标数据准备完成（OpenDigger: {len(opendigger_data)} 个，已补充缺失部分）")
+    print(f"  ✓ 指标数据准备完成（OpenDigger: {len(opendigger_data)} 个）")
     
     # ========== 步骤2: 爬取描述文本（预处理后，上传到知识库）==========
     print("\n[2/4] 爬取描述文本（README、LICENSE、文档等，优化：最多20个文档）...")
@@ -129,6 +114,10 @@ def crawl_project_monthly(owner: str, repo: str, max_per_month: int = 3, enable_
     
     static_docs = fetch_static_docs()
     print(f"  ✓ 获取了静态文档（共 {len(static_docs.get('all_doc_files', []))} 个文档文件）")
+    print(f"    - README: {'✓' if static_docs.get('readme') else '✗'}")
+    print(f"    - LICENSE: {'✓' if static_docs.get('license') else '✗'}")
+    print(f"    - 重要文档: {len(static_docs.get('important_md_files', []))} 个")
+    print(f"    - 配置文件: {len(static_docs.get('config_files', []))} 个")
     
     # 初始化LLM客户端（用于摘要生成）
     llm_client = None
@@ -209,15 +198,9 @@ def crawl_project_monthly(owner: str, repo: str, max_per_month: int = 3, enable_
         '新增Issue': 'issues_new',
         '关闭Issue': 'issues_closed',
         'Issue评论': 'issue_comments',
-        'Issue响应时间': 'issue_response_time',
-        'Issue解决时长': 'issue_resolution_duration',
-        'Issue存活时间': 'issue_age',
         '变更请求': 'change_requests',
         'PR接受数': 'change_requests_accepted',
         'PR审查': 'change_requests_reviews',
-        'PR响应时间': 'change_request_response_time',
-        'PR处理时长': 'change_request_resolution_duration',
-        'PR存活时间': 'change_request_age',
         '代码新增行数': 'code_change_lines_add',
         '代码删除行数': 'code_change_lines_remove',
         '代码变更总行数': 'code_change_lines_sum',

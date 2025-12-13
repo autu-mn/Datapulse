@@ -54,7 +54,7 @@ class DataService:
                     'opendigger_PR审查': {'key': 'PR审查', 'color': '#FF9800', 'unit': '次'},
                     'opendigger_代码新增行数': {'key': '代码新增行数', 'color': '#00f5d4', 'unit': '行'},
                     'opendigger_代码删除行数': {'key': '代码删除行数', 'color': '#ff6b9d', 'unit': '行'},
-                    'opendigger_代码变更总行数': {'key': '代码变更总行数', 'color': '#9C27B0', 'unit': '行'},
+                    'opendigger_代码变更总行数': {'key': '代码变更总行数', 'color': '#9C27B0', 'unit': '行'}, 
                 }
             },
             'issues': {
@@ -75,24 +75,6 @@ class DataService:
                     'opendigger_新增贡献者': {'key': '新增贡献者', 'color': '#00f5d4', 'unit': '人'},
                     'opendigger_总线因子': {'key': '总线因子', 'color': '#FFD700', 'unit': ''},
                     'opendigger_不活跃贡献者': {'key': '不活跃贡献者', 'color': '#ff6b9d', 'unit': '人'},
-                }
-            },
-            'issue_response': {
-                'name': 'Issue 响应效率',
-                'description': 'Issue 响应时间、解决时长等效率指标（单位：小时）',
-                'metrics': {
-                    'opendigger_Issue响应时间': {'key': 'Issue响应时间', 'color': '#2196F3', 'unit': '小时'},
-                    'opendigger_Issue解决时长': {'key': 'Issue解决时长', 'color': '#FF9800', 'unit': '小时'},
-                    'opendigger_Issue存活时间': {'key': 'Issue存活时间', 'color': '#9C27B0', 'unit': '小时'},
-                }
-            },
-            'pr_response': {
-                'name': 'PR 响应效率',
-                'description': 'PR 响应时间、处理时长等效率指标（单位：小时）',
-                'metrics': {
-                    'opendigger_PR响应时间': {'key': 'PR响应时间', 'color': '#00f5d4', 'unit': '小时'},
-                    'opendigger_PR处理时长': {'key': 'PR处理时长', 'color': '#FFD700', 'unit': '小时'},
-                    'opendigger_PR存活时间': {'key': 'PR存活时间', 'color': '#ff6b9d', 'unit': '小时'},
                 }
             },
             'statistics': {

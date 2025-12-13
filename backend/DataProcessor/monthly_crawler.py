@@ -28,17 +28,20 @@ class MonthlyCrawler:
         self.tokens = []
         self.current_token_index = 0
         
-        # 检查多种可能的token名称（大小写兼容）
+        # 检查多种可能的token名称（大小写兼容，支持GITHUB_TOKEN和GITHUB_TOKEN_1到GITHUB_TOKEN_6）
+        # 加载主token
         token = os.getenv('GITHUB_TOKEN') or os.getenv('github_token')
-        token_1 = os.getenv('GITHUB_TOKEN_1') or os.getenv('GitHub_TOKEN_1') or os.getenv('github_token_1')
-        token_2 = os.getenv('GITHUB_TOKEN_2') or os.getenv('GitHub_TOKEN_2') or os.getenv('github_token_2')
-        
         if token:
             self.tokens.append(token)
-        if token_1:
-            self.tokens.append(token_1)
-        if token_2:
-            self.tokens.append(token_2)
+        
+        # 加载GITHUB_TOKEN_1到GITHUB_TOKEN_6
+        for i in range(1, 7):
+            token_key = f'GITHUB_TOKEN_{i}'
+            token_value = (os.getenv(token_key) or 
+                          os.getenv(token_key.replace('GITHUB_TOKEN', 'GitHub_TOKEN')) or
+                          os.getenv(token_key.lower()))
+            if token_value:
+                self.tokens.append(token_value)
         
         # 轮换使用token
         if len(self.tokens) > 1:
@@ -588,8 +591,8 @@ class MonthlyCrawler:
                         'releases': []
                     }
             
-            # 使用线程池并发爬取（最多5个并发）
-            with ThreadPoolExecutor(max_workers=5) as executor:
+            # 使用线程池并发爬取（降低并发数到2以减少 rate limit）
+            with ThreadPoolExecutor(max_workers=2) as executor:
                 futures = {executor.submit(crawl_single_month, month): month for month in months}
                 
                 completed = 0

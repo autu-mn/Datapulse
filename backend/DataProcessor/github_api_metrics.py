@@ -24,21 +24,20 @@ class GitHubAPIMetrics:
         if token:
             self.tokens.append(token)
         else:
-            # 从环境变量加载多个Token
+            # 从环境变量加载多个Token（支持GITHUB_TOKEN和GITHUB_TOKEN_1到GITHUB_TOKEN_6）
             token = os.getenv('GITHUB_TOKEN')
-            token_1 = os.getenv('GITHUB_TOKEN_1')
-            token_2 = os.getenv('GITHUB_TOKEN_2')
-            
-            # 按顺序添加Token
             if token:
                 self.tokens.append(token)
-            if token_1:
-                self.tokens.append(token_1)
-            if token_2:
-                self.tokens.append(token_2)
+            
+            # 加载GITHUB_TOKEN_1到GITHUB_TOKEN_6
+            for i in range(1, 7):
+                token_key = f'GITHUB_TOKEN_{i}'
+                token_value = os.getenv(token_key)
+                if token_value:
+                    self.tokens.append(token_value)
         
         if not self.tokens:
-            print("  ⚠ 警告: 未找到 GITHUB_TOKEN/GITHUB_TOKEN_1/GITHUB_TOKEN_2，API请求可能受限")
+            print("  ⚠ 警告: 未找到 GITHUB_TOKEN/GITHUB_TOKEN_1到GITHUB_TOKEN_6，API请求可能受限")
             self.token = None
         else:
             self.token = self.tokens[0]

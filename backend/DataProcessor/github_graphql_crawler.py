@@ -8,6 +8,7 @@ import requests
 import json
 import asyncio
 import aiohttp
+import time
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -22,20 +23,26 @@ class GitHubGraphQLCrawler:
     def __init__(self):
         self.graphql_url = "https://api.github.com/graphql"
         
-        # 支持多Token轮换
+        # 支持多Token轮换（支持GITHUB_TOKEN和GITHUB_TOKEN_1到GITHUB_TOKEN_6）
         self.tokens = []
         self.current_token_index = 0
+        self.rate_limit_retry_count = {}  # 记录每个token的rate limit重试次数
         
+        # 加载主token
         token = os.getenv('GITHUB_TOKEN') or os.getenv('github_token')
-        token_1 = os.getenv('GITHUB_TOKEN_1') or os.getenv('GitHub_TOKEN_1') or os.getenv('github_token_1')
-        token_2 = os.getenv('GITHUB_TOKEN_2') or os.getenv('GitHub_TOKEN_2') or os.getenv('github_token_2')
-        
         if token:
             self.tokens.append(token)
-        if token_1:
-            self.tokens.append(token_1)
-        if token_2:
-            self.tokens.append(token_2)
+            self.rate_limit_retry_count[token] = 0
+        
+        # 加载GITHUB_TOKEN_1到GITHUB_TOKEN_6
+        for i in range(1, 7):
+            token_key = f'GITHUB_TOKEN_{i}'
+            token_value = (os.getenv(token_key) or 
+                          os.getenv(token_key.replace('GITHUB_TOKEN', 'GitHub_TOKEN')) or
+                          os.getenv(token_key.lower()))
+            if token_value:
+                self.tokens.append(token_value)
+                self.rate_limit_retry_count[token_value] = 0
         
         if not self.tokens:
             raise ValueError("未找到 GITHUB_TOKEN，请在 .env 文件中配置")
@@ -72,18 +79,147 @@ class GitHubGraphQLCrawler:
                 if response.status_code == 200:
                     data = response.json()
                     if 'errors' in data:
-                        print(f"  ⚠ GraphQL错误: {data['errors']}")
+                        error_msgs = [err.get('message', str(err)) for err in data['errors']]
+                        error_str = ', '.join(error_msgs)
+                        print(f"  ⚠ GraphQL错误: {error_str}")
+                        
+                        # 检查是否是rate limit错误
+                        if any('rate limit' in msg.lower() for msg in error_msgs):
+                            # 记录当前token的rate limit次数
+                            self.rate_limit_retry_count[self.token] = self.rate_limit_retry_count.get(self.token, 0) + 1
+                            
+                            # 检查是否所有token都超过了rate limit
+                            all_tokens_exceeded = all(
+                                self.rate_limit_retry_count.get(token, 0) > 0 
+                                for token in self.tokens
+                            )
+                            
+                            if all_tokens_exceeded and len(self.tokens) > 1:
+                                # 所有token都超过limit，检查响应头中的重置时间
+                                reset_time = None
+                                if 'X-RateLimit-Reset' in response.headers:
+                                    reset_time = int(response.headers['X-RateLimit-Reset'])
+                                    current_time = int(time.time())
+                                    wait_seconds = max(reset_time - current_time + 5, 60)  # 至少等待60秒，或等到重置时间+5秒缓冲
+                                else:
+                                    # 如果没有重置时间信息，等待1小时
+                                    wait_seconds = 3600
+                                
+                                wait_minutes = wait_seconds // 60
+                                print(f"  ⚠ 所有Token都超过Rate Limit，等待 {wait_minutes} 分钟（{wait_seconds}秒）后重试...")
+                                # 每30秒输出一次进度
+                                for remaining in range(wait_seconds, 0, -30):
+                                    if remaining % 300 == 0 or remaining <= 60:  # 每5分钟或最后1分钟输出
+                                        print(f"    剩余等待时间: {remaining // 60} 分钟")
+                                    time.sleep(min(30, remaining))
+                                
+                                # 重置所有token的计数
+                                for token in self.tokens:
+                                    self.rate_limit_retry_count[token] = 0
+                                # 切换到第一个token
+                                self.current_token_index = 0
+                                self.token = self.tokens[0]
+                                self.headers['Authorization'] = f'bearer {self.token}'
+                                print(f"  ✓ 等待完成，重置所有Token状态，继续重试...")
+                                continue
+                            elif len(self.tokens) > 1:
+                                # 还有token可用，切换token
+                                print(f"  → Token {self.current_token_index + 1} Rate Limit，切换Token...")
+                                self.switch_token()
+                                continue
+                            else:
+                                # 只有一个token，检查响应头中的重置时间
+                                reset_time = None
+                                try:
+                                    if 'X-RateLimit-Reset' in response.headers:
+                                        reset_time = int(response.headers['X-RateLimit-Reset'])
+                                        current_time = int(time.time())
+                                        wait_seconds = max(reset_time - current_time + 5, 60)  # 至少等待60秒
+                                    else:
+                                        wait_seconds = 3600  # 默认等待1小时
+                                except:
+                                    wait_seconds = 3600
+                                
+                                wait_minutes = wait_seconds // 60
+                                print(f"  → Rate limit reached, waiting {wait_minutes} 分钟（{wait_seconds}秒）...")
+                                # 每30秒输出一次进度
+                                for remaining in range(wait_seconds, 0, -30):
+                                    if remaining % 300 == 0 or remaining <= 60:
+                                        print(f"    剩余等待时间: {remaining // 60} 分钟")
+                                    time.sleep(min(30, remaining))
+                                self.rate_limit_retry_count[self.token] = 0
+                                print(f"  ✓ 等待完成，继续重试...")
+                                continue
                         return None
                     return data.get('data')
                 elif response.status_code == 403:
+                    # 检查响应中的错误信息
+                    try:
+                        error_data = response.json()
+                        if 'errors' in error_data:
+                            error_msgs = [err.get('message', '') for err in error_data['errors']]
+                            if any('rate limit' in msg.lower() for msg in error_msgs):
+                                # 记录当前token的rate limit次数
+                                self.rate_limit_retry_count[self.token] = self.rate_limit_retry_count.get(self.token, 0) + 1
+                                
+                                # 检查是否所有token都超过了rate limit
+                                all_tokens_exceeded = all(
+                                    self.rate_limit_retry_count.get(token, 0) > 0 
+                                    for token in self.tokens
+                                )
+                                
+                                if all_tokens_exceeded and len(self.tokens) > 1:
+                                    # 所有token都超过limit，检查响应头中的重置时间
+                                    reset_time = None
+                                    try:
+                                        if hasattr(response, 'headers') and 'X-RateLimit-Reset' in response.headers:
+                                            reset_time = int(response.headers['X-RateLimit-Reset'])
+                                            import time
+                                            current_time = int(time.time())
+                                            wait_seconds = max(reset_time - current_time + 5, 60)  # 至少等待60秒
+                                        else:
+                                            # 如果没有重置时间信息，等待1小时
+                                            wait_seconds = 3600
+                                    except:
+                                        wait_seconds = 3600
+                                    
+                                    wait_minutes = wait_seconds // 60
+                                    print(f"  ⚠ 所有Token都超过Rate Limit，等待 {wait_minutes} 分钟（{wait_seconds}秒）后重试...")
+                                    import time
+                                    # 每30秒输出一次进度
+                                    for remaining in range(wait_seconds, 0, -30):
+                                        if remaining % 300 == 0 or remaining <= 60:  # 每5分钟或最后1分钟输出
+                                            print(f"    剩余等待时间: {remaining // 60} 分钟")
+                                        time.sleep(min(30, remaining))
+                                    
+                                    # 重置所有token的计数
+                                    for token in self.tokens:
+                                        self.rate_limit_retry_count[token] = 0
+                                    # 切换到第一个token
+                                    self.current_token_index = 0
+                                    self.token = self.tokens[0]
+                                    self.headers['Authorization'] = f'bearer {self.token}'
+                                    print(f"  ✓ 等待完成，重置所有Token状态，继续重试...")
+                                    continue
+                                elif len(self.tokens) > 1:
+                                    # 还有token可用，切换token
+                                    print(f"  ⚠ Token {self.current_token_index + 1} Rate Limit，切换Token...")
+                                    self.switch_token()
+                                    continue
+                                else:
+                                    # 只有一个token，等待60秒
+                                    print(f"  ⚠ Rate limit reached, waiting 60s...")
+                                    import time
+                                    time.sleep(60)
+                                    self.rate_limit_retry_count[self.token] = 0
+                                    continue
+                    except:
+                        pass
+                    # 其他403错误，尝试切换token
                     if len(self.tokens) > 1:
                         self.switch_token()
                         continue
-                    else:
-                        print(f"  ⚠ Rate limit reached, waiting 60s...")
-                        import time
-                        time.sleep(60)
-                        continue
+                    return None
                 else:
                     print(f"  ⚠ 请求失败: {response.status_code}")
                     return None
@@ -113,7 +249,7 @@ class GitHubGraphQLCrawler:
         query($owner: String!, $repo: String!, $after: String) {
           repository(owner: $owner, name: $repo) {
             issues(
-              first: 100
+              first: 20
               after: $after
               orderBy: {field: UPDATED_AT, direction: DESC}
               states: [OPEN, CLOSED]
@@ -176,11 +312,21 @@ class GitHubGraphQLCrawler:
             }
             
             data = self._execute_query(query, variables)
-            if not data or not data.get('repository'):
+            if not data:
+                print(f"  ⚠ 获取issues失败: GraphQL查询返回空数据")
                 break
             
-            issues = data['repository']['issues']['nodes']
-            page_info = data['repository']['issues']['pageInfo']
+            if not data.get('repository'):
+                print(f"  ⚠ 获取issues失败: 仓库不存在或无权限")
+                break
+            
+            repository_data = data.get('repository')
+            if not repository_data or 'issues' not in repository_data:
+                print(f"  ⚠ 获取issues失败: 响应格式错误")
+                break
+            
+            issues = repository_data['issues']['nodes']
+            page_info = repository_data['issues']['pageInfo']
             
             for issue in issues:
                 # 跳过PR（PR在GitHub中也是issue类型）
@@ -252,7 +398,7 @@ class GitHubGraphQLCrawler:
         query($owner: String!, $repo: String!, $after: String) {
           repository(owner: $owner, name: $repo) {
             pullRequests(
-              first: 100
+              first: 20
               after: $after
               orderBy: {field: UPDATED_AT, direction: DESC}
               states: [OPEN, CLOSED, MERGED]
@@ -407,7 +553,7 @@ class GitHubGraphQLCrawler:
             defaultBranchRef {
               target {
                 ... on Commit {
-                  history(first: 100, after: $after) {
+                  history(first: 20, after: $after) {
                     pageInfo {
                       hasNextPage
                       endCursor
@@ -500,7 +646,7 @@ class GitHubGraphQLCrawler:
         query = """
         query($owner: String!, $repo: String!, $after: String) {
           repository(owner: $owner, name: $repo) {
-            releases(first: 100, after: $after, orderBy: {field: CREATED_AT, direction: DESC}) {
+            releases(first: 20, after: $after, orderBy: {field: CREATED_AT, direction: DESC}) {
               pageInfo {
                 hasNextPage
                 endCursor
@@ -573,9 +719,9 @@ class GitHubGraphQLCrawler:
     def crawl_month_batch(self, owner: str, repo: str, month: str, max_per_month: int = 3) -> Dict:
         """
         批量爬取指定月份的所有数据（Issues、PRs、Commits、Releases）
-        使用并发请求提升速度
+        使用并发请求提升速度（降低并发数到2以减少 rate limit）
         """
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        with ThreadPoolExecutor(max_workers=2) as executor:
             futures = {
                 'issues': executor.submit(self.batch_fetch_issues, owner, repo, month, max_per_month),
                 'prs': executor.submit(self.batch_fetch_prs, owner, repo, month, max_per_month),
@@ -588,7 +734,11 @@ class GitHubGraphQLCrawler:
                 try:
                     results[key] = future.result(timeout=60)
                 except Exception as e:
+                    import traceback
+                    error_detail = traceback.format_exc()
                     print(f"  ⚠ 获取{key}失败: {str(e)}")
+                    if 'GraphQL' in str(e) or 'query' in str(e).lower():
+                        print(f"    详细错误: {error_detail[-500:]}")  # 只打印最后500字符
                     results[key] = []
         
         return results

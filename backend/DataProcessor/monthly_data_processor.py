@@ -40,8 +40,8 @@ class MonthlyDataProcessor:
         self.all_metrics_list = [
             'OpenRank', '活跃度', 'Star数', 'Fork数', '关注度', '参与者数',
             '新增贡献者', '贡献者', '不活跃贡献者', '总线因子',
-            '新增Issue', '关闭Issue', 'Issue评论', 'Issue响应时间', 'Issue解决时长', 'Issue存活时间',
-            '变更请求', 'PR接受数', 'PR审查', 'PR响应时间', 'PR处理时长', 'PR存活时间',
+            '新增Issue', '关闭Issue', 'Issue评论',
+            '变更请求', 'PR接受数', 'PR审查',
             '代码新增行数', '代码删除行数', '代码变更总行数'
         ]
     
@@ -160,16 +160,26 @@ class MonthlyDataProcessor:
                 readme_content = '\n\n'.join(
                     item.get('content', '') for item in readme_data if item.get('content')
                 )
-                static_texts['readme'] = self._preprocess_text(readme_content)
+                if readme_content:
+                    static_texts['readme'] = self._preprocess_text(readme_content)
+                    print(f"  ✓ 提取了 {len(readme_data)} 个README文件")
             elif isinstance(readme_data, dict):
                 readme_content = readme_data.get('content', '')
-                static_texts['readme'] = self._preprocess_text(readme_content)
+                if readme_content:
+                    static_texts['readme'] = self._preprocess_text(readme_content)
+                    print(f"  ✓ 提取了README文件: {readme_data.get('name', 'unknown')}")
+        else:
+            print(f"  ⚠ 未找到README文件")
         
         # 提取LICENSE并预处理
         license_data = static_docs.get('license')
         if license_data:
             license_content = license_data.get('content', '')
-            static_texts['license'] = self._preprocess_text(license_content)
+            if license_content:
+                static_texts['license'] = self._preprocess_text(license_content)
+                print(f"  ✓ 提取了LICENSE文件: {license_data.get('name', 'unknown')}")
+        else:
+            print(f"  ⚠ 未找到LICENSE文件")
         
         # 提取文档文件（合并所有来源）
         docs_files = static_docs.get('docs_files', [])
@@ -244,8 +254,8 @@ class MonthlyDataProcessor:
         all_metrics_list = [
             'OpenRank', '活跃度', 'Star数', 'Fork数', '关注度', '参与者数',
             '新增贡献者', '贡献者', '不活跃贡献者', '总线因子',
-            '新增Issue', '关闭Issue', 'Issue评论', 'Issue响应时间', 'Issue解决时长', 'Issue存活时间',
-            '变更请求', 'PR接受数', 'PR审查', 'PR响应时间', 'PR处理时长', 'PR存活时间',
+            '新增Issue', '关闭Issue', 'Issue评论',
+            '变更请求', 'PR接受数', 'PR审查',
             '代码新增行数', '代码删除行数', '代码变更总行数'
         ]
         

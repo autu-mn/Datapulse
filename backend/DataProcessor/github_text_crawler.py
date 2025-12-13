@@ -8,6 +8,7 @@ import json
 import re
 import base64
 from urllib.parse import quote
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 load_dotenv()
 
@@ -38,17 +39,11 @@ class OpenDiggerMetrics:
             'issues_new': '新增Issue',
             'issues_closed': '关闭Issue',
             'issue_comments': 'Issue评论',
-            'issue_response_time': 'Issue响应时间',
-            'issue_resolution_duration': 'Issue解决时长',
-            'issue_age': 'Issue存活时间',
             
             # PR (变更请求) 相关
             'change_requests': '变更请求',
             'change_requests_accepted': 'PR接受数',
             'change_requests_reviews': 'PR审查',
-            'change_request_response_time': 'PR响应时间',
-            'change_request_resolution_duration': 'PR处理时长',
-            'change_request_age': 'PR存活时间',
             
             # 代码更改相关（注意：OpenDigger没有code_change_commits，只有code_change_lines）
             'code_change_lines_add': '代码新增行数',
@@ -84,17 +79,20 @@ class GitHubTextCrawler:
         self.tokens = []
         self.current_token_index = 0
         
-        # 支持不同大小写的token名称
+        # 支持不同大小写的token名称（支持GITHUB_TOKEN和GITHUB_TOKEN_1到GITHUB_TOKEN_6）
+        # 加载主token
         token = os.getenv('GITHUB_TOKEN') or os.getenv('github_token')
-        token_1 = os.getenv('GITHUB_TOKEN_1') or os.getenv('GitHub_TOKEN_1') or os.getenv('github_token_1')
-        token_2 = os.getenv('GITHUB_TOKEN_2') or os.getenv('GitHub_TOKEN_2') or os.getenv('github_token_2')
-        
         if token:
             self.tokens.append(token)
-        if token_1:
-            self.tokens.append(token_1)
-        if token_2:
-            self.tokens.append(token_2)
+        
+        # 加载GITHUB_TOKEN_1到GITHUB_TOKEN_6
+        for i in range(1, 7):
+            token_key = f'GITHUB_TOKEN_{i}'
+            token_value = (os.getenv(token_key) or 
+                          os.getenv(token_key.replace('GITHUB_TOKEN', 'GitHub_TOKEN')) or
+                          os.getenv(token_key.lower()))
+            if token_value:
+                self.tokens.append(token_value)
         
         # 轮换使用token
         if len(self.tokens) > 1:
@@ -209,23 +207,34 @@ class GitHubTextCrawler:
         
         # 尝试获取默认 README（通常是英文）
         url = f"{self.base_url}/repos/{owner}/{repo}/readme"
-        response = self.safe_request(url)
-        if response and response.status_code == 200:
-            data = response.json()
-            content_url = data.get('download_url')
-            if content_url:
-                content = self.safe_get_content(content_url)
-                if content:
-                    readmes.append({
-                        'name': data['name'],
-                        'path': data['path'],
-                        'size': data['size'],
-                        'content': content,
-                        'language': 'default'
-                    })
-                    print(f"    - {data['name']} (默认)")
+        try:
+            response = self.safe_request(url)
+            if response and response.status_code == 200:
+                data = response.json()
+                content_url = data.get('download_url')
+                if content_url:
+                    content = self.safe_get_content(content_url)
+                    if content:
+                        readmes.append({
+                            'name': data['name'],
+                            'path': data['path'],
+                            'size': data['size'],
+                            'content': content,
+                            'language': 'default'
+                        })
+                        print(f"    - {data['name']} (默认)")
+                    else:
+                        print(f"    ⚠ README下载失败: {content_url}")
+                else:
+                    print(f"    ⚠ README没有download_url")
+            elif response:
+                print(f"    ⚠ README请求失败: HTTP {response.status_code}")
+            else:
+                print(f"    ⚠ README请求失败: 无响应")
+        except Exception as e:
+            print(f"    ⚠ 获取README异常: {str(e)}")
         
-        # 尝试获取中文版 README
+        # 尝试获取中文版 README（并发获取，找到第一个就停止）
         chinese_readme_names = [
             'README-cn.md', 'README-CN.md', 'README_CN.md', 'README_cn.md',
             'README-zh.md', 'README-ZH.md', 'README_ZH.md', 'README_zh.md',
@@ -234,13 +243,28 @@ class GitHubTextCrawler:
             'README中文.md', 'README.Chinese.md'
         ]
         
-        for readme_name in chinese_readme_names:
-            file_data = self.get_file_content(owner, repo, readme_name)
-            if file_data:
-                file_data['language'] = 'chinese'
-                readmes.append(file_data)
-                print(f"    - {readme_name} (中文)")
-                break  # 找到一个中文版就停止
+        # 并发获取，找到第一个就停止
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {
+                executor.submit(self.get_file_content, owner, repo, readme_name): readme_name 
+                for readme_name in chinese_readme_names
+            }
+            
+            for future in as_completed(futures):
+                readme_name = futures[future]
+                try:
+                    file_data = future.result(timeout=3)
+                    if file_data:
+                        file_data['language'] = 'chinese'
+                        readmes.append(file_data)
+                        print(f"    - {readme_name} (中文)")
+                        # 取消其他未完成的任务
+                        for f in futures:
+                            if f != future and not f.done():
+                                f.cancel()
+                        break  # 找到一个中文版就停止
+                except Exception:
+                    pass
         
         # 返回所有找到的 README（如果有多个）或单个或 None
         if len(readmes) == 0:
@@ -272,7 +296,7 @@ class GitHubTextCrawler:
         return None
     
     def get_config_files(self, owner, repo):
-        config_files = []
+        """获取配置文件（并发优化）"""
         config_patterns = [
             'package.json', 'package-lock.json',
             'requirements.txt', 'Pipfile', 'pyproject.toml', 'setup.py',
@@ -288,76 +312,114 @@ class GitHubTextCrawler:
             'Makefile', 'CMakeLists.txt'
         ]
         
-        for pattern in config_patterns:
-            file_data = self.get_file_content(owner, repo, pattern)
-            if file_data:
-                config_files.append(file_data)
-                time.sleep(0.3)
+        config_files = []
+        
+        # 使用线程池并发获取配置文件
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            futures = {
+                executor.submit(self.get_file_content, owner, repo, pattern): pattern 
+                for pattern in config_patterns
+            }
+            
+            for future in as_completed(futures):
+                pattern = futures[future]
+                try:
+                    file_data = future.result(timeout=5)
+                    if file_data:
+                        config_files.append(file_data)
+                except Exception as e:
+                    # 文件不存在或获取失败，静默跳过
+                    pass
         
         return config_files
     
-    def get_docs_files(self, owner, repo, path='docs', max_files=30, depth=0, max_depth=2):
-        """获取 docs 目录下的文档文件（限制递归深度和文件数）"""
-        if depth >= max_depth:
-            return []
+    def _collect_doc_file_paths(self, owner, repo, path='docs', max_files=30, depth=0, max_depth=2, collected_paths=None):
+        """收集文档文件路径（不实际获取内容）"""
+        if collected_paths is None:
+            collected_paths = []
         
-        if depth == 0:
-            print(f"  获取 docs 目录文档（最多 {max_files} 个文件，最大深度 {max_depth}）...")
+        if depth >= max_depth or len(collected_paths) >= max_files:
+            return collected_paths
         
-        docs_files = []
         url = f"{self.base_url}/repos/{owner}/{repo}/contents/{path}"
         response = self.safe_request(url)
         
         if not response or response.status_code != 200:
-            if depth == 0:
-                print(f"  docs 目录不存在或无法访问")
-            return docs_files
+            return collected_paths
         
         try:
             items = response.json()
             if not isinstance(items, list):
-                return docs_files
+                return collected_paths
         except:
-            return docs_files
+            return collected_paths
         
         # 只处理前 20 个项目（文件+目录），避免目录项过多
         items = items[:20]
         
         for item in items:
-            # 检查是否已达到文件数限制
-            if len(docs_files) >= max_files:
-                if depth == 0:
-                    print(f"  已达到文件数限制 ({max_files})，停止爬取")
+            if len(collected_paths) >= max_files:
                 break
             
             if item['type'] == 'file':
                 file_ext = os.path.splitext(item['name'])[1].lower()
                 if file_ext in ['.md', '.txt', '.rst', '.adoc']:
-                    if depth == 0:
-                        print(f"    - {item['name']}")
-                    file_data = self.get_file_content(owner, repo, item['path'])
-                    if file_data:
-                        docs_files.append(file_data)
-                        time.sleep(0.2)  # 减少延迟
+                    collected_paths.append(item['path'])
             elif item['type'] == 'dir' and depth < max_depth - 1:
                 # 跳过一些常见的非重要目录
                 skip_dirs = ['__pycache__', 'node_modules', '.git', 'build', 'dist', 
                            '_build', '_static', '_templates', 'test', 'tests', 'examples']
                 if item['name'] not in skip_dirs:
-                    remaining = max_files - len(docs_files)
-                    if remaining > 0:
-                        sub_docs = self.get_docs_files(owner, repo, item['path'], 
-                                                       max_files=remaining, 
-                                                       depth=depth + 1, 
-                                                       max_depth=max_depth)
-                        docs_files.extend(sub_docs)
-                
+                    self._collect_doc_file_paths(owner, repo, item['path'], 
+                                                 max_files=max_files, 
+                                                 depth=depth + 1, 
+                                                 max_depth=max_depth,
+                                                 collected_paths=collected_paths)
+        
+        return collected_paths
+    
+    def get_docs_files(self, owner, repo, path='docs', max_files=30, depth=0, max_depth=2):
+        """获取 docs 目录下的文档文件（并发优化）"""
+        if depth == 0:
+            print(f"  获取 docs 目录文档（最多 {max_files} 个文件，最大深度 {max_depth}，并发）...")
+        
+        # 先收集所有文件路径
+        file_paths = self._collect_doc_file_paths(owner, repo, path, max_files, depth, max_depth)
+        
+        if not file_paths:
+            if depth == 0:
+                print(f"  docs 目录不存在或无法访问")
+            return []
+        
+        # 限制文件数量
+        file_paths = file_paths[:max_files]
+        
+        # 并发获取文件内容
+        docs_files = []
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            futures = {
+                executor.submit(self.get_file_content, owner, repo, file_path): file_path 
+                for file_path in file_paths
+            }
+            
+            for future in as_completed(futures):
+                file_path = futures[future]
+                try:
+                    file_data = future.result(timeout=5)
+                    if file_data:
+                        if depth == 0:
+                            print(f"    - {os.path.basename(file_path)}")
+                        docs_files.append(file_data)
+                except Exception as e:
+                    # 文件获取失败，静默跳过
+                    pass
+        
         if depth == 0:
             print(f"  获取到 {len(docs_files)} 个文档文件")
         return docs_files
     
     def get_license_file(self, owner, repo):
-        """获取LICENSE文件（支持多种格式）"""
+        """获取LICENSE文件（支持多种格式，并发优化）"""
         license_patterns = [
             'LICENSE', 'LICENSE.txt', 'LICENSE.md',
             'LICENCE', 'LICENCE.txt', 'LICENCE.md',
@@ -365,12 +427,26 @@ class GitHubTextCrawler:
             'AUTHORS', 'AUTHORS.txt', 'AUTHORS.md'
         ]
         
-        for pattern in license_patterns:
-            file_data = self.get_file_content(owner, repo, pattern)
-            if file_data:
-                print(f"    - 找到 LICENSE: {pattern}")
-                return file_data
-            time.sleep(0.2)
+        # 并发获取，找到第一个就返回
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {
+                executor.submit(self.get_file_content, owner, repo, pattern): pattern 
+                for pattern in license_patterns
+            }
+            
+            for future in as_completed(futures):
+                pattern = futures[future]
+                try:
+                    file_data = future.result(timeout=3)
+                    if file_data:
+                        print(f"    - 找到 LICENSE: {pattern}")
+                        # 取消其他未完成的任务
+                        for f in futures:
+                            if f != future and not f.done():
+                                f.cancel()
+                        return file_data
+                except Exception:
+                    pass
         
         return None
     
@@ -452,9 +528,8 @@ class GitHubTextCrawler:
         return all_files
     
     def get_important_md_files(self, owner, repo, max_files=10):
-        """获取仓库根目录下的重要 Markdown 文件"""
-        print(f"  获取根目录重要 Markdown 文件...")
-        important_files = []
+        """获取仓库根目录下的重要 Markdown 文件（并发优化）"""
+        print(f"  获取根目录重要 Markdown 文件（并发）...")
         important_names = [
             'CONTRIBUTING.md', 'CHANGELOG.md', 'HISTORY.md',
             'LICENSE.md', 'SECURITY.md', 'CODE_OF_CONDUCT.md',
@@ -462,16 +537,27 @@ class GitHubTextCrawler:
             'FAQ.md', 'INSTALL.md', 'USAGE.md'
         ]
         
-        count = 0
-        for filename in important_names:
-            if count >= max_files:
-                break
-            file_data = self.get_file_content(owner, repo, filename)
-            if file_data:
-                print(f"    - {filename}")
-                important_files.append(file_data)
-                count += 1
-                time.sleep(0.2)  # 减少延迟
+        # 限制并发数量，避免过多请求
+        important_names = important_names[:max_files]
+        important_files = []
+        
+        # 使用线程池并发获取文件
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {
+                executor.submit(self.get_file_content, owner, repo, filename): filename 
+                for filename in important_names
+            }
+            
+            for future in as_completed(futures):
+                filename = futures[future]
+                try:
+                    file_data = future.result(timeout=5)
+                    if file_data:
+                        print(f"    - {filename}")
+                        important_files.append(file_data)
+                except Exception as e:
+                    # 文件不存在或获取失败，静默跳过
+                    pass
         
         print(f"  获取到 {len(important_files)} 个重要 Markdown 文件")
         return important_files
