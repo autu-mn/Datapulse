@@ -67,14 +67,25 @@ def get_repos():
 def get_repo_summary(repo_key):
     """获取仓库摘要"""
     try:
+        original_key = repo_key
         # 支持两种格式：owner/repo 或 owner_repo
         # 如果是 owner_repo 格式，转换为 owner/repo
         if '_' in repo_key and '/' not in repo_key:
             repo_key = repo_key.replace('_', '/')
         
+        print(f"[DEBUG] get_repo_summary: 请求 '{original_key}' -> 转换后: '{repo_key}'")
+        
         summary = data_service.get_repo_summary(repo_key)
+        
+        # 验证返回的摘要是否属于请求的仓库
+        returned_repo_key = summary.get('repoKey', '')
+        print(f"[DEBUG] get_repo_summary: 返回的 repoKey: '{returned_repo_key}'")
+        
         return jsonify(summary)
     except Exception as e:
+        import traceback
+        print(f"[ERROR] get_repo_summary 错误: {repo_key}")
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -101,13 +112,33 @@ def get_grouped_timeseries(repo_key):
     动态确定时间范围，标记缺失值
     """
     try:
+        original_repo_key = repo_key
         # 支持两种格式：owner/repo 或 owner_repo
         if '_' in repo_key and '/' not in repo_key:
             repo_key = repo_key.replace('_', '/')
         
-        grouped = data_service.get_grouped_timeseries(repo_key)
+        # 规范化 key
+        normalized_key = data_service._normalize_repo_key(repo_key)
+        
+        # 验证规范化后的 key 是否真的存在数据
+        if normalized_key not in data_service.loaded_timeseries:
+            # 列出所有已加载的仓库，帮助调试
+            loaded_repos = list(data_service.loaded_timeseries.keys())
+            error_msg = f"仓库 '{original_repo_key}' (规范化后: '{normalized_key}') 的时序数据未加载。已加载的仓库: {loaded_repos}"
+            print(f"错误: {error_msg}")
+            return jsonify({'error': error_msg}), 404
+        
+        # 使用规范化后的 key 获取数据
+        grouped = data_service.get_grouped_timeseries(normalized_key)
+        
+        # 验证返回的数据是否属于请求的仓库（通过检查数据特征）
+        print(f"请求: {original_repo_key} -> 规范化: {normalized_key} -> 返回数据")
+        
         return jsonify(grouped)
     except Exception as e:
+        import traceback
+        print(f"获取时序数据失败: {repo_key}")
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -137,8 +168,18 @@ def get_issues_by_month(repo_key):
                 'question': '社区咨询', 'other': '其他'
             })
             
-            categories = [
-                {
+            # 确保 by_month 是字典且不为空
+            if not isinstance(by_month, dict):
+                print(f"警告: {actual_key} 的 by_month 不是字典格式: {type(by_month)}")
+                by_month = {}
+            
+            categories = []
+            for m, data in sorted(by_month.items()):
+                if not isinstance(data, dict):
+                    print(f"警告: {actual_key} 的月份 {m} 数据不是字典格式: {type(data)}")
+                    continue
+                
+                categories.append({
                     'month': m,
                     'total': data.get('total', 0),
                     'categories': {
@@ -147,9 +188,9 @@ def get_issues_by_month(repo_key):
                         labels.get('question', '社区咨询'): data.get('question', 0),
                         labels.get('other', '其他'): data.get('other', 0)
                     }
-                }
-                for m, data in sorted(by_month.items())
-            ]
+                })
+            
+            print(f"返回 {len(categories)} 个月的 Issue 分类数据 (repo: {actual_key})")
             
             return jsonify({
                 'categories': categories,
@@ -157,6 +198,7 @@ def get_issues_by_month(repo_key):
             })
         
         # 回退到从文本数据计算
+        print(f"未找到预计算的 Issue 分类数据，尝试从文本数据计算 (repo: {actual_key})")
         issues_data = data_service.get_aligned_issues(repo_key, month)
         
         # 转换为前端期望的格式
@@ -174,11 +216,16 @@ def get_issues_by_month(repo_key):
             for m, data in issues_data.get('monthlyData', {}).items()
         }
         
+        print(f"从文本数据计算得到 {len(categories)} 个月的 Issue 数据")
+        
         return jsonify({
             'categories': sorted(categories, key=lambda x: x['month']),
             'monthlyKeywords': monthly_keywords
         })
     except Exception as e:
+        import traceback
+        print(f"获取 Issue 数据时出错: {str(e)}")
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -25,10 +25,28 @@ const GROUP_ICONS: Record<string, string> = {
 }
 
 export default function GroupedTimeSeriesChart({ data, onMonthClick, repoKey }: GroupedTimeSeriesChartProps) {
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['popularity', 'development']))
+  // 初始化时展开所有分组
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
+    if (data?.groups) {
+      return new Set(Object.keys(data.groups))
+    }
+    return new Set()
+  })
   const [hiddenMetrics, setHiddenMetrics] = useState<Set<string>>(new Set())
   const [focusedGroup, setFocusedGroup] = useState<string | null>(null)
   const [predictionMetric, setPredictionMetric] = useState<{groupKey: string, metricKey: string, metricName: string} | null>(null)
+
+  // 当数据变化时，确保所有分组都展开
+  useEffect(() => {
+    if (data?.groups) {
+      const allGroupKeys = Object.keys(data.groups)
+      setExpandedGroups(prev => {
+        const newSet = new Set(prev)
+        allGroupKeys.forEach(key => newSet.add(key))
+        return newSet
+      })
+    }
+  }, [data])
 
   const toggleGroup = (groupKey: string) => {
     setExpandedGroups(prev => {

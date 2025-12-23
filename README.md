@@ -4,6 +4,8 @@ GitHub 仓库生态画像分析平台
 
 ## 项目架构
 
+> 📖 **详细架构文档请查看：[ARCHITECTURE.md](./ARCHITECTURE.md)**
+
 ```
 DataPulse/
 ├── backend/                    # 后端服务 (Python Flask)
@@ -84,7 +86,7 @@ npm run dev
 
 ```env
 GITHUB_TOKEN=your_github_token
-DEEPSEEK_API_KEY=your_deepseek_api_key
+DEEPSEEK_KEY=your_deepseek_api_key
 ```
 
 ## 使用流程

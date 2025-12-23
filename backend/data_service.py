@@ -34,6 +34,8 @@ class DataService:
         self.loaded_text = {}
         self.loaded_issue_classification = {}
         self.loaded_project_summary = {}
+        # 记录每个 key 对应的数据来源路径，用于验证
+        self._data_source_map = {}  # {repo_key: folder_path}
         
         # 指标分组配置 - 按类型和数量级分组
         self.metric_groups = {
@@ -128,37 +130,59 @@ class DataService:
                     folder_path = os.path.join(item_path, latest_folder)
                     timeseries_file = os.path.join(folder_path, 'timeseries_data.json')
                     
+                    # 只加载有 timeseries_data.json 的文件夹
                     if os.path.exists(timeseries_file):
                         # 使用项目文件夹名作为repo_key（格式：owner_repo -> owner/repo）
                         repo_key = item.replace('_', '/')
-                        print(f"自动加载数据: {repo_key} from {latest_folder}")
-                        # 同时保存两种格式的映射
+                        print(f"自动加载数据: {repo_key} (文件夹: {item}) from {latest_folder}")
+                        # 只加载一次，使用标准格式（owner/repo）
                         self._load_processed_data(repo_key, folder_path)
-                        # 也保存原始格式（owner_repo）以便查找
-                        self._load_processed_data(item, folder_path)
+                        # 同时记录下划线格式的映射，但不重复加载数据
+                        if item != repo_key:
+                            # 只记录映射关系，不重复加载数据
+                            self._data_source_map[item] = folder_path
+                            print(f"  已记录映射: {item} -> {repo_key}")
+                        print(f"  已加载的 key: {repo_key} (数据来源: {os.path.basename(folder_path)})")
+                    else:
+                        print(f"  跳过 {item}: 未找到 timeseries_data.json")
                         
-                elif item.endswith('_processed'):
-                    # 旧结构：直接在Data目录下的processed文件夹
-                    folder_path = item_path
-                    timeseries_file = os.path.join(folder_path, 'timeseries_data.json')
-                    
-                    if os.path.exists(timeseries_file):
-                        # 从文件夹名提取仓库名
-                        parts = item.replace('_processed', '').split('_text_data_')
-                        if len(parts) >= 1:
-                            repo_parts = parts[0].split('_')
-                            if len(repo_parts) >= 2:
-                                repo_key = f"{repo_parts[0]}/{repo_parts[1]}"
-                            else:
-                                repo_key = parts[0].replace('_', '/')
+            elif item.endswith('_processed'):
+                # 旧结构：直接在Data目录下的processed文件夹
+                folder_path = os.path.join(DATA_DIR, item)
+                timeseries_file = os.path.join(folder_path, 'timeseries_data.json')
+                
+                if os.path.exists(timeseries_file):
+                    # 从文件夹名提取仓库名
+                    parts = item.replace('_processed', '').split('_text_data_')
+                    if len(parts) >= 1:
+                        repo_parts = parts[0].split('_')
+                        if len(repo_parts) >= 2:
+                            repo_key = f"{repo_parts[0]}/{repo_parts[1]}"
                         else:
-                            repo_key = item.replace('_processed', '').replace('_', '/')
-                        
-                        print(f"自动加载数据: {repo_key} from {item}")
-                        self._load_processed_data(repo_key, folder_path)
+                            repo_key = parts[0].replace('_', '/')
+                    else:
+                        repo_key = item.replace('_processed', '').replace('_', '/')
+                    
+                    print(f"自动加载数据: {repo_key} from {item}")
+                    self._load_processed_data(repo_key, folder_path)
     
     def _load_processed_data(self, repo_key, folder_path):
         """加载处理后的数据文件夹"""
+        # 验证：如果这个 key 已经有数据，检查数据来源是否一致
+        if repo_key in self.loaded_timeseries:
+            existing_source = self._data_source_map.get(repo_key, 'unknown')
+            if existing_source != folder_path:
+                print(f"  ⚠ 警告: {repo_key} 的数据已存在，现有来源: {os.path.basename(existing_source)}, 新来源: {os.path.basename(folder_path)}")
+                # 检查是否是同一个仓库的不同格式（通过文件夹名判断）
+                existing_folder = os.path.basename(os.path.dirname(existing_source))
+                new_folder = os.path.basename(os.path.dirname(folder_path))
+                # 如果文件夹名不同，说明是不同的仓库，不应该覆盖
+                if existing_folder != new_folder:
+                    print(f"  ✗ 错误: 尝试用不同仓库的数据覆盖 {repo_key}！跳过加载。")
+                    print(f"     现有: {existing_folder} -> {repo_key}")
+                    print(f"     新数据: {new_folder} -> {repo_key}")
+                    return
+        
         timeseries_file = os.path.join(folder_path, 'timeseries_data.json')
         text_file = os.path.join(folder_path, 'text_data_structured.json')
         issue_classification_file = os.path.join(folder_path, 'issue_classification.json')
@@ -168,9 +192,37 @@ class DataService:
             try:
                 with open(timeseries_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
+                    
                     if isinstance(data, dict):
-                        self.loaded_timeseries[repo_key] = data
+                        # 检查是否是按月份组织的格式（新格式：{month: {指标名: 值}}）
+                        first_key = list(data.keys())[0] if data else None
+                        if first_key and isinstance(first_key, str) and len(first_key) == 7 and first_key[4] == '-':
+                            # 新格式：需要转换为 {opendigger_指标名: {raw: {month: 值}}}
+                            timeseries_dict = {}
+                            for month, metrics in data.items():
+                                if isinstance(metrics, dict):
+                                    for metric_name, value in metrics.items():
+                                        # 添加 opendigger_ 前缀以匹配 metric_groups 中的键
+                                        full_metric_key = f"opendigger_{metric_name}"
+                                        if full_metric_key not in timeseries_dict:
+                                            timeseries_dict[full_metric_key] = {'raw': {}}
+                                        timeseries_dict[full_metric_key]['raw'][month] = value
+                            
+                            if timeseries_dict:
+                                # 记录数据来源
+                                self._data_source_map[repo_key] = folder_path
+                                self.loaded_timeseries[repo_key] = timeseries_dict
+                                print(f"  ✓ 成功加载 {repo_key}: {len(timeseries_dict)} 个指标，数据来源: {os.path.basename(folder_path)}")
+                                print(f"     示例指标: {list(timeseries_dict.keys())[:3]}")
+                            else:
+                                print(f"  警告: 时序数据格式异常 {repo_key}: 无法解析")
+                        else:
+                            # 旧格式：直接保存
+                            self._data_source_map[repo_key] = folder_path
+                            self.loaded_timeseries[repo_key] = data
+                            print(f"  ✓ 成功加载 {repo_key} (旧格式)，数据来源: {os.path.basename(folder_path)}")
                     elif isinstance(data, list):
+                        # 列表格式：转换为字典
                         timeseries_dict = {}
                         for item in data:
                             if isinstance(item, dict):
@@ -178,17 +230,77 @@ class DataService:
                                     if key != 'date' and key not in timeseries_dict:
                                         timeseries_dict[key] = {'raw': {}}
                         if timeseries_dict:
+                            self._data_source_map[repo_key] = folder_path
                             self.loaded_timeseries[repo_key] = timeseries_dict
+                            print(f"  ✓ 成功加载 {repo_key} (列表格式): {len(timeseries_dict)} 个指标，数据来源: {os.path.basename(folder_path)}")
             except Exception as e:
-                print(f"加载时序数据失败 {repo_key}: {e}")
+                import traceback
+                print(f"  ✗ 加载时序数据失败 {repo_key}: {e}")
+                traceback.print_exc()
         
         # 加载文本数据
         if os.path.exists(text_file):
             try:
                 with open(text_file, 'r', encoding='utf-8') as f:
                     self.loaded_text[repo_key] = json.load(f)
+                print(f"  ✓ 成功加载文本数据 {repo_key}，数据来源: {os.path.basename(folder_path)}")
             except Exception as e:
-                print(f"加载文本数据失败 {repo_key}: {e}")
+                print(f"  ✗ 加载文本数据失败 {repo_key}: {e}")
+        else:
+            # 如果 text_data_structured.json 不存在，初始化为空列表
+            if repo_key not in self.loaded_text:
+                self.loaded_text[repo_key] = []
+        
+        # 加载 metadata.json 并提取 repo_info（如果文本数据中没有）
+        metadata_file = os.path.join(folder_path, 'metadata.json')
+        if os.path.exists(metadata_file):
+            try:
+                with open(metadata_file, 'r', encoding='utf-8') as f:
+                    metadata = json.load(f)
+                
+                # 检查文本数据中是否已有 repo_info
+                has_repo_info = False
+                if repo_key in self.loaded_text:
+                    for doc in self.loaded_text[repo_key]:
+                        if doc.get('type') == 'repo_info':
+                            has_repo_info = True
+                            break
+                
+                # 如果没有 repo_info，从 metadata.json 中提取并添加
+                if not has_repo_info and metadata.get('repo_info'):
+                    repo_info_data = metadata.get('repo_info', {})
+                    labels = metadata.get('labels', [])
+                    
+                    # 确保 loaded_text 存在
+                    if repo_key not in self.loaded_text:
+                        self.loaded_text[repo_key] = []
+                    
+                    # 创建 repo_info 文档，格式与 text_data_structured.json 一致
+                    repo_info_doc = {
+                        'type': 'repo_info',
+                        'content': json.dumps({
+                            'full_name': repo_info_data.get('full_name') or f"{metadata.get('owner', '')}/{metadata.get('repo', '')}",
+                            'name': repo_info_data.get('name') or metadata.get('repo', ''),
+                            'description': repo_info_data.get('description', ''),
+                            'homepage': repo_info_data.get('homepage', ''),
+                            'language': repo_info_data.get('language', ''),
+                            'stars': repo_info_data.get('stargazers_count') or repo_info_data.get('stars', 0),
+                            'forks': repo_info_data.get('forks_count') or repo_info_data.get('forks', 0),
+                            'watchers': repo_info_data.get('watchers_count') or repo_info_data.get('watchers', 0),
+                            'open_issues': repo_info_data.get('open_issues_count') or repo_info_data.get('open_issues', 0),
+                            'created_at': repo_info_data.get('created_at', ''),
+                            'updated_at': repo_info_data.get('updated_at', ''),
+                            'license': repo_info_data.get('license', {}).get('name', '') if isinstance(repo_info_data.get('license'), dict) else repo_info_data.get('license', ''),
+                            'topics': repo_info_data.get('topics', []),
+                            'labels': labels
+                        }, ensure_ascii=False)
+                    }
+                    
+                    # 添加到文本数据列表的开头
+                    self.loaded_text[repo_key].insert(0, repo_info_doc)
+                    print(f"  ✓ 从 metadata.json 提取并添加 repo_info {repo_key}")
+            except Exception as e:
+                print(f"  ✗ 加载 metadata.json 失败 {repo_key}: {e}")
         
         # 加载 Issue 分类数据
         if os.path.exists(issue_classification_file):
@@ -284,32 +396,49 @@ class DataService:
         }
     
     def _normalize_repo_key(self, repo_key):
-        """标准化仓库key格式，支持两种格式的查找"""
-        # 先尝试原始格式
+        """标准化仓库key格式，支持两种格式的查找（精确匹配，避免错误匹配）"""
+        original_key = repo_key
+        
+        # 先尝试原始格式（精确匹配）
         if repo_key in self.loaded_timeseries or repo_key in self.loaded_text:
+            source = self._data_source_map.get(repo_key, 'unknown')
+            print(f"[DEBUG] _normalize_repo_key: '{original_key}' -> '{repo_key}' (原始格式匹配，来源: {os.path.basename(os.path.dirname(source))})")
             return repo_key
         
-        # 尝试转换格式
+        # 尝试转换格式（精确匹配）
         if '/' in repo_key:
             alt_key = repo_key.replace('/', '_')
             if alt_key in self.loaded_timeseries or alt_key in self.loaded_text:
+                source = self._data_source_map.get(alt_key, 'unknown')
+                print(f"[DEBUG] _normalize_repo_key: '{original_key}' -> '{alt_key}' (转换格式匹配: / -> _，来源: {os.path.basename(os.path.dirname(source))})")
                 return alt_key
         elif '_' in repo_key:
             alt_key = repo_key.replace('_', '/')
             if alt_key in self.loaded_timeseries or alt_key in self.loaded_text:
+                source = self._data_source_map.get(alt_key, 'unknown')
+                print(f"[DEBUG] _normalize_repo_key: '{original_key}' -> '{alt_key}' (转换格式匹配: _ -> /，来源: {os.path.basename(os.path.dirname(source))})")
                 return alt_key
         
-        return repo_key  # 如果都不存在，返回原始key
+        # 如果都不存在，返回原始key（不要进行模糊匹配，避免匹配错误）
+        print(f"[DEBUG] _normalize_repo_key: '{original_key}' -> '{original_key}' (未找到匹配)")
+        print(f"[DEBUG]   已加载的仓库: {list(self.loaded_timeseries.keys())}")
+        return original_key
     
     def get_grouped_timeseries(self, repo_key):
         """
         获取按类型分组的时序数据
         从真实数据文件读取，动态确定时间范围
         """
+        original_key = repo_key
         repo_key = self._normalize_repo_key(repo_key)
         
+        # 验证规范化后的 key 是否真的存在
         if repo_key not in self.loaded_timeseries:
-            raise ValueError(f"仓库 {repo_key} 的时序数据未加载")
+            loaded_keys = list(self.loaded_timeseries.keys())
+            raise ValueError(f"仓库 '{original_key}' (规范化后: '{repo_key}') 的时序数据未加载。已加载的仓库: {loaded_keys}")
+        
+        # 记录使用的 key，用于调试
+        print(f"get_grouped_timeseries: 请求 '{original_key}' -> 使用 key '{repo_key}'")
         
         timeseries_data = self.loaded_timeseries[repo_key]
         
@@ -740,11 +869,17 @@ class DataService:
     
     def get_repo_summary(self, repo_key):
         """获取仓库摘要信息"""
+        original_key = repo_key
         # 支持两种格式：owner/repo 或 owner_repo
         actual_key = self._normalize_repo_key(repo_key)
         
+        print(f"[DEBUG] get_repo_summary: 请求 '{original_key}' -> 规范化: '{actual_key}'")
+        print(f"[DEBUG]   actual_key 在 loaded_timeseries: {actual_key in self.loaded_timeseries}")
+        print(f"[DEBUG]   actual_key 在 loaded_text: {actual_key in self.loaded_text}")
+        print(f"[DEBUG]   所有已加载的 key: {list(self.loaded_timeseries.keys())}")
+        
         summary = {
-            'repoKey': repo_key,
+            'repoKey': original_key,  # 使用原始 key，不要使用规范化后的 key
             'hasTimeseries': actual_key in self.loaded_timeseries,
             'hasText': actual_key in self.loaded_text
         }
@@ -757,15 +892,16 @@ class DataService:
                 'months': len(time_range)
             }
             summary['metrics'] = list(self.loaded_timeseries[actual_key].keys())
+            print(f"[DEBUG]   使用时序数据 key: '{actual_key}'")
         
         if actual_key in self.loaded_text:
             text_data = self.loaded_text[actual_key]
             
             # 提取仓库基本信息
+            repo_info = None
             for doc in text_data:
                 if doc.get('type') == 'repo_info':
                     content = doc.get('content', '')
-                    repo_info = {}
                     
                     # 尝试解析为JSON格式（新格式）
                     try:
@@ -775,8 +911,18 @@ class DataService:
                             repo_info['topics'] = repo_info['topics']
                         if 'labels' in repo_info and isinstance(repo_info['labels'], list):
                             repo_info['labels'] = repo_info['labels']
-                    except (json.JSONDecodeError, TypeError):
+                        # 确保数值字段是数字类型
+                        if 'stars' in repo_info:
+                            repo_info['stars'] = int(repo_info['stars']) if repo_info['stars'] else 0
+                        if 'forks' in repo_info:
+                            repo_info['forks'] = int(repo_info['forks']) if repo_info['forks'] else 0
+                        if 'watchers' in repo_info:
+                            repo_info['watchers'] = int(repo_info['watchers']) if repo_info['watchers'] else 0
+                        if 'open_issues' in repo_info:
+                            repo_info['open_issues'] = int(repo_info['open_issues']) if repo_info['open_issues'] else 0
+                    except (json.JSONDecodeError, TypeError) as e:
                         # 如果不是JSON，尝试解析为文本格式（旧格式兼容）
+                        repo_info = {}
                         lines = content.split('\n')
                         for line in lines:
                             if ':' in line:
@@ -811,7 +957,39 @@ class DataService:
                     
                     if repo_info:
                         summary['repoInfo'] = repo_info
+                        print(f"[DEBUG]   提取到 repoInfo: {repo_info.get('full_name', 'N/A')}")
                     break
+            
+            # 如果没有找到 repo_info，尝试从 metadata.json 读取（作为后备）
+            if not repo_info and actual_key in self._data_source_map:
+                metadata_file = os.path.join(self._data_source_map[actual_key], 'metadata.json')
+                if os.path.exists(metadata_file):
+                    try:
+                        with open(metadata_file, 'r', encoding='utf-8') as f:
+                            metadata = json.load(f)
+                        repo_info_data = metadata.get('repo_info', {})
+                        if repo_info_data:
+                            repo_info = {
+                                'full_name': repo_info_data.get('full_name') or f"{metadata.get('owner', '')}/{metadata.get('repo', '')}",
+                                'name': repo_info_data.get('name') or metadata.get('repo', ''),
+                                'description': repo_info_data.get('description', ''),
+                                'homepage': repo_info_data.get('homepage', ''),
+                                'language': repo_info_data.get('language', ''),
+                                'stars': int(repo_info_data.get('stargazers_count') or repo_info_data.get('stars', 0)),
+                                'forks': int(repo_info_data.get('forks_count') or repo_info_data.get('forks', 0)),
+                                'watchers': int(repo_info_data.get('watchers_count') or repo_info_data.get('watchers', 0)),
+                                'open_issues': int(repo_info_data.get('open_issues_count') or repo_info_data.get('open_issues', 0)),
+                                'created_at': repo_info_data.get('created_at', ''),
+                                'updated_at': repo_info_data.get('updated_at', ''),
+                                'license': repo_info_data.get('license', {}).get('name', '') if isinstance(repo_info_data.get('license'), dict) else repo_info_data.get('license', ''),
+                                'topics': repo_info_data.get('topics', []),
+                                'labels': metadata.get('labels', [])
+                            }
+                            summary['repoInfo'] = repo_info
+                            print(f"[DEBUG]   从 metadata.json 提取 repoInfo: {repo_info.get('full_name', 'N/A')}")
+                    except Exception as e:
+                        print(f"[DEBUG]   从 metadata.json 读取失败: {e}")
+            
             summary['textStats'] = {
                 'total': len(text_data),
                 'issues': sum(1 for d in text_data if d.get('type') == 'issue'),

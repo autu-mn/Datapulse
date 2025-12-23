@@ -65,13 +65,21 @@ export default function IssueAnalysis({ data, keywords, selectedMonth, onMonthSe
 
   // 用于条形图的数据（最近12个月）
   const barChartData = useMemo(() => {
-    return filteredData.slice(-12).map(item => ({
+    if (!filteredData || filteredData.length === 0) {
+      console.warn('IssueAnalysis: filteredData 为空', { data, filteredData })
+      return []
+    }
+    
+    const chartData = filteredData.slice(-12).map(item => ({
       month: item.month.slice(2),
       fullMonth: item.month,
       ...item.categories,
       total: item.total
     }))
-  }, [filteredData])
+    
+    console.log('IssueAnalysis: barChartData', chartData)
+    return chartData
+  }, [filteredData, data])
 
   const CustomBarTooltip = ({ active, payload, label }: {
     active?: boolean
@@ -167,7 +175,27 @@ export default function IssueAnalysis({ data, keywords, selectedMonth, onMonthSe
         <div className="p-6">
           <div className="h-[400px]">
             <AnimatePresence mode="wait">
-              {viewMode === 'bar' ? (
+              {barChartData.length === 0 ? (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="h-full flex items-center justify-center"
+                >
+                  <div className="text-center">
+                    <Tag className="w-12 h-12 text-cyber-muted mx-auto mb-4" />
+                    <p className="text-cyber-muted font-chinese">
+                      {filteredData.length === 0 
+                        ? '暂无 Issue 分类数据'
+                        : '数据格式错误，请检查后端返回的数据格式'}
+                    </p>
+                    <p className="text-cyber-muted/50 font-chinese text-sm mt-2">
+                      数据: {JSON.stringify(filteredData.slice(0, 2), null, 2)}
+                    </p>
+                  </div>
+                </motion.div>
+              ) : viewMode === 'bar' ? (
                 <motion.div
                   key="bar"
                   initial={{ opacity: 0 }}

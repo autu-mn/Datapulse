@@ -111,6 +111,12 @@ function App() {
       
       if (issuesData.error) {
         console.warn('Issue数据获取失败:', issuesData.error)
+      } else {
+        console.log('Issue数据获取成功:', {
+          categoriesCount: issuesData.categories?.length || 0,
+          categories: issuesData.categories,
+          keywordsCount: Object.keys(issuesData.monthlyKeywords || {}).length
+        })
       }
       
       // 获取项目摘要（包含 AI 摘要）
