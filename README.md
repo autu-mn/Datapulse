@@ -1,4 +1,4 @@
-# DataPulse
+# OpenVista
 
 GitHub 仓库生态画像分析平台
 
@@ -7,7 +7,7 @@ GitHub 仓库生态画像分析平台
 > 📖 **详细架构文档请查看：[ARCHITECTURE.md](./ARCHITECTURE.md)**
 
 ```
-DataPulse/
+OpenVista/
 ├── backend/                    # 后端服务 (Python Flask)
 │   ├── Agent/                  # AI/MaxKB 层
 │   │   ├── deepseek_client.py  # DeepSeek API 客户端

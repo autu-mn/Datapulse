@@ -1,5 +1,5 @@
 """
-DataPulse 后端 API
+OpenVista 后端 API
 GitHub 仓库生态画像分析平台 - 时序数据可视化与归因分析
 从真实数据文件读取，动态确定时间范围
 """
@@ -753,7 +753,7 @@ def crawl_repository():
 
 if __name__ == '__main__':
     print("\n" + "="*60)
-    print("DataPulse 后端服务启动")
+    print("OpenVista 后端服务启动")
     print("="*60)
     
     repos = data_service.get_loaded_repos()

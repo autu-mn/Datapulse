@@ -116,7 +116,7 @@ export default function HomePage({ onProjectReady }: HomePageProps) {
           >
             <Sparkles className="w-10 h-10 text-cyber-primary" />
             <h1 className="text-5xl font-display font-bold bg-gradient-to-r from-cyber-primary via-cyber-secondary to-cyber-accent bg-clip-text text-transparent">
-              DataPulse
+              OpenVista
             </h1>
           </motion.div>
           

@@ -1,15 +1,15 @@
-# DataPulse 项目架构文档
+# OpenVista 项目架构文档
 
 ## 📋 项目概述
 
-**DataPulse** 是一个 GitHub 仓库生态画像分析平台，专注于时序数据可视化与归因分析。通过爬取 GitHub 仓库数据、OpenDigger 指标，结合 AI 技术进行智能分析和预测。
+**OpenVista** 是一个 GitHub 仓库生态画像分析平台，专注于时序数据可视化与归因分析。通过爬取 GitHub 仓库数据、OpenDigger 指标，结合 AI 技术进行智能分析和预测。
 
 ---
 
 ## 🏗️ 整体架构
 
 ```
-DataPulse/
+OpenVista/
 ├── backend/                    # 后端服务 (Python Flask)
 │   ├── app.py                  # Flask API 入口
 │   ├── data_service.py         # 数据服务层
