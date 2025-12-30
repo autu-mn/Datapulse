@@ -34,7 +34,11 @@ export default function GroupedTimeSeriesChart({ data, onMonthClick, repoKey }: 
   })
   const [hiddenMetrics, setHiddenMetrics] = useState<Set<string>>(new Set())
   const [focusedGroup, setFocusedGroup] = useState<string | null>(null)
-  const [predictionMetric, setPredictionMetric] = useState<{groupKey: string, metricKey: string, metricName: string} | null>(null)
+  const [predictionMetric, setPredictionMetric] = useState<{
+    groupKey: string
+    metricKey: string
+    metricName: string
+  } | null>(null)
 
   // 当数据变化时，确保所有分组都展开
   useEffect(() => {
@@ -110,18 +114,127 @@ export default function GroupedTimeSeriesChart({ data, onMonthClick, repoKey }: 
     const unit = firstMetric?.unit || ''
     
     // 统计缺失值数量
-    const totalMissing = Object.values(groupData.metrics).reduce((sum, m) => 
-      sum + (m.missingIndices?.length || 0), 0
+    const totalMissing = Object.values(groupData.metrics).reduce(
+      (sum, m) => sum + (m.missingIndices?.length || 0),
+      0
     )
+    
+    // 计算当前组所有可见指标的数据范围（排除null值）
+    const calculateYAxisDomain = () => {
+      const visibleMetrics = Object.entries(groupData.metrics).filter(
+        ([metricKey]) => !hiddenMetrics.has(`${groupKey}-${metricKey}`)
+      )
+      
+      if (visibleMetrics.length === 0) return ['auto', 'auto']
+      
+      let minValue = Infinity
+      let maxValue = -Infinity
+      
+      visibleMetrics.forEach(([_, metricInfo]) => {
+        metricInfo.data.forEach((value) => {
+          if (value !== null && value !== undefined && typeof value === 'number') {
+            const numValue = Number(value)
+            if (!isNaN(numValue) && isFinite(numValue)) {
+              minValue = Math.min(minValue, numValue)
+              maxValue = Math.max(maxValue, numValue)
+            }
+          }
+        })
+      })
+      
+      // 如果没有有效数据，使用自动范围
+      if (minValue === Infinity || maxValue === -Infinity) {
+        return ['auto', 'auto']
+      }
+      
+      // 判断所有数据是否都 >= 0
+      const allNonNegative = minValue >= 0
+      
+      // 如果所有数据都是同一个值，使用合理的范围
+      if (minValue === maxValue) {
+        const singleValue = minValue
+        if (singleValue === 0) {
+          return [0, 1] // 如果值为0，显示0到1
+        } else if (singleValue > 0) {
+          return [0, singleValue * 1.2] // 正数：从0到值的120%
+        } else {
+          return [singleValue * 1.2, 0] // 负数：从值的120%到0
+        }
+      }
+      
+      // 计算数据范围
+      const range = maxValue - minValue
+      
+      // 如果数据范围非常小（接近0），使用自动范围避免精度问题
+      if (range < Number.EPSILON * 1000) {
+        return ['auto', 'auto']
+      }
+      
+      // 计算padding，使用相对较小的比例（5%），但确保不会过大
+      // 对于很小的数据范围，使用固定的小padding
+      let padding: number
+      if (range < 1) {
+        padding = Math.max(range * 0.1, 0.01) // 小范围数据使用10% padding，最小0.01
+      } else if (range < 10) {
+        padding = range * 0.05 // 中等范围使用5% padding
+      } else {
+        padding = range * 0.05 // 大范围使用5% padding
+      }
+      
+      // 计算新的最小值和最大值
+      let newMin = minValue - padding
+      let newMax = maxValue + padding
+      
+      // 如果所有数据都 >= 0，确保最小值至少为0
+      if (allNonNegative) {
+        newMin = Math.max(0, newMin)
+      }
+      
+      // 处理浮点数精度问题，四舍五入到合理的小数位数
+      // 根据数据大小决定精度
+      const getPrecision = (value: number) => {
+        if (value >= 1000) return 0
+        if (value >= 100) return 1
+        if (value >= 10) return 2
+        if (value >= 1) return 3
+        return 4
+      }
+      
+      const minPrecision = getPrecision(Math.abs(newMin))
+      const maxPrecision = getPrecision(Math.abs(newMax))
+      const precision = Math.max(minPrecision, maxPrecision)
+      
+      newMin = Number.parseFloat(newMin.toFixed(precision))
+      newMax = Number.parseFloat(newMax.toFixed(precision))
+      
+      // 确保最小值小于最大值
+      if (newMin >= newMax) {
+        const mid = (minValue + maxValue) / 2
+        // 使用数据范围的一半作为padding，但至少保证有合理的范围
+        const halfRange = Math.max(range / 2, range * 0.1, 0.1)
+        newMin = allNonNegative ? Math.max(0, mid - halfRange) : mid - halfRange
+        newMax = mid + halfRange
+        
+        // 再次处理精度
+        const fallbackPrecision = getPrecision(Math.abs(Math.max(Math.abs(newMin), Math.abs(newMax))))
+        newMin = Number.parseFloat(newMin.toFixed(fallbackPrecision))
+        newMax = Number.parseFloat(newMax.toFixed(fallbackPrecision))
+        
+        // 再次确保如果所有数据都 >= 0，最小值至少为0
+        if (allNonNegative) {
+          newMin = Math.max(0, newMin)
+        }
+      }
+      
+      return [newMin, newMax]
+    }
+    
+    const yAxisDomain = calculateYAxisDomain()
 
     return (
       <motion.div
         key={groupKey}
-        className={`
-          bg-cyber-card/50 backdrop-blur-sm rounded-xl border border-cyber-border overflow-hidden
-          transition-all duration-300
-          ${isFocused ? 'col-span-full' : ''}
-        `}
+        className={`bg-cyber-card/50 backdrop-blur-sm rounded-xl border border-cyber-border overflow-hidden transition-all duration-300 ${isFocused ? 'col-span-full' : ''}`}
         layout
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -162,12 +275,20 @@ export default function GroupedTimeSeriesChart({ data, onMonthClick, repoKey }: 
               className="p-2 text-cyber-muted hover:text-cyber-primary transition-colors"
               title={isFocused ? '退出全屏' : '全屏查看'}
             >
-              {isFocused ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              {isFocused ? (
+                <Minimize2 className="w-4 h-4" />
+              ) : (
+                <Maximize2 className="w-4 h-4" />
+              )}
             </button>
             
             {/* 展开/收起 */}
             <button className="p-2 text-cyber-muted hover:text-cyber-primary transition-colors">
-              {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              {isExpanded ? (
+                <ChevronUp className="w-5 h-5" />
+              ) : (
+                <ChevronDown className="w-5 h-5" />
+              )}
             </button>
           </div>
         </div>
@@ -191,21 +312,20 @@ export default function GroupedTimeSeriesChart({ data, onMonthClick, repoKey }: 
                     <div key={metricKey} className="flex items-center gap-2">
                       <button
                         onClick={() => toggleMetric(`${groupKey}-${metricKey}`)}
-                        className={`
-                          flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all
-                          ${!isHidden
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all ${
+                          !isHidden
                             ? 'bg-cyber-surface border-2'
                             : 'bg-cyber-bg/50 border border-cyber-border opacity-50'
-                          }
-                        `}
+                        }`}
                         style={{
                           borderColor: !isHidden ? metricInfo.color : undefined
                         }}
                       >
-                        {!isHidden 
-                          ? <Eye className="w-3 h-3" /> 
-                          : <EyeOff className="w-3 h-3" />
-                        }
+                        {!isHidden ? (
+                          <Eye className="w-3 h-3" />
+                        ) : (
+                          <EyeOff className="w-3 h-3" />
+                        )}
                         <span className="font-chinese">{metricInfo.name}</span>
                         {metricInfo.unit && (
                           <span className="text-cyber-muted text-xs">({metricInfo.unit})</span>
@@ -222,7 +342,13 @@ export default function GroupedTimeSeriesChart({ data, onMonthClick, repoKey }: 
                       </button>
                       {repoKey && (
                         <button
-                          onClick={() => setPredictionMetric({groupKey, metricKey, metricName: metricInfo.name})}
+                          onClick={() =>
+                            setPredictionMetric({
+                              groupKey,
+                              metricKey,
+                              metricName: metricInfo.name
+                            })
+                          }
                           className="px-2 py-1.5 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/50 rounded-lg text-yellow-400 transition-colors"
                           title="预测未来趋势"
                         >
@@ -272,14 +398,46 @@ export default function GroupedTimeSeriesChart({ data, onMonthClick, repoKey }: 
                       />
                       
                       <YAxis 
+                        type="number"
+                        domain={yAxisDomain}
                         stroke="#8b97a8"
                         tick={{ fill: '#8b97a8', fontSize: 10 }}
                         tickLine={{ stroke: '#2d3a4f' }}
                         axisLine={{ stroke: '#2d3a4f' }}
                         tickFormatter={(value) => {
-                          if (value >= 1000) return `${(value / 1000).toFixed(1)}k`
-                          return value
+                          // 处理NaN和Infinity
+                          if (!isFinite(value)) return ''
+                          
+                          // 大数值使用k/M单位
+                          if (Math.abs(value) >= 1000000) {
+                            return `${(value / 1000000).toFixed(1)}M`
+                          }
+                          if (Math.abs(value) >= 1000) {
+                            return `${(value / 1000).toFixed(1)}k`
+                          }
+                          
+                          // 小数值根据精度格式化
+                          if (Math.abs(value) < 1 && value !== 0) {
+                            // 对于小于1的数值，保留最多3位有效数字
+                            const absValue = Math.abs(value)
+                            if (absValue >= 0.1) {
+                              return value.toFixed(2)
+                            } else if (absValue >= 0.01) {
+                              return value.toFixed(3)
+                            } else {
+                              return value.toExponential(1)
+                            }
+                          }
+                          
+                          // 整数或接近整数的值
+                          if (Math.abs(value - Math.round(value)) < 0.001) {
+                            return Math.round(value).toString()
+                          }
+                          
+                          // 其他情况保留最多2位小数
+                          return value.toFixed(2)
                         }}
+                        allowDataOverflow={false}
                       />
                       
                       <Tooltip 
@@ -308,13 +466,19 @@ export default function GroupedTimeSeriesChart({ data, onMonthClick, repoKey }: 
                                             {entry.name}
                                           </span>
                                         </div>
-                                        <span className={`font-mono text-sm ${isMissing ? 'text-white/50 italic' : 'text-cyber-text'}`}>
-                                          {isMissing ? '缺失' : (
-                                            typeof entry.value === 'number' 
-                                              ? entry.value.toLocaleString() 
-                                              : entry.value
+                                        <span
+                                          className={`font-mono text-sm ${
+                                            isMissing ? 'text-white/50 italic' : 'text-cyber-text'
+                                          }`}
+                                        >
+                                          {isMissing
+                                            ? '缺失'
+                                            : typeof entry.value === 'number'
+                                              ? entry.value.toLocaleString()
+                                              : entry.value}
+                                          {!isMissing && unit && (
+                                            <span className="text-cyber-muted ml-1">{unit}</span>
                                           )}
-                                          {!isMissing && unit && <span className="text-cyber-muted ml-1">{unit}</span>}
                                         </span>
                                       </div>
                                     )
@@ -322,8 +486,7 @@ export default function GroupedTimeSeriesChart({ data, onMonthClick, repoKey }: 
                               </div>
                               <button
                                 onClick={() => onMonthClick(`20${label}`)}
-                                className="mt-2 w-full py-1.5 bg-cyber-primary/20 hover:bg-cyber-primary/30 
-                                         text-cyber-primary text-xs rounded transition-colors font-chinese"
+                                className="mt-2 w-full py-1.5 bg-cyber-primary/20 hover:bg-cyber-primary/30 text-cyber-primary text-xs rounded transition-colors font-chinese"
                               >
                                 查看 Issue 详情
                               </button>
@@ -485,7 +648,10 @@ export default function GroupedTimeSeriesChart({ data, onMonthClick, repoKey }: 
               <PredictionChart
                 repoKey={repoKey}
                 metricName={predictionMetric.metricName}
-                historicalData={getHistoricalDataForPrediction(predictionMetric.groupKey, predictionMetric.metricKey)}
+                historicalData={getHistoricalDataForPrediction(
+                  predictionMetric.groupKey,
+                  predictionMetric.metricKey
+                )}
                 onClose={() => setPredictionMetric(null)}
               />
             </motion.div>
@@ -503,17 +669,18 @@ export default function GroupedTimeSeriesChart({ data, onMonthClick, repoKey }: 
           时序指标分组视图
         </h2>
         <p className="text-sm text-cyber-muted font-chinese mb-4">
-          数据范围：{data.startMonth || data.timeAxis[0]} 至 {data.endMonth || data.timeAxis[data.timeAxis.length - 1]} 
-          · 共 {data.timeAxis.length} 个月 
-          · {Object.keys(data.groups).length} 个分组
+          数据范围：{data.startMonth || data.timeAxis[0]} 至{' '}
+          {data.endMonth || data.timeAxis[data.timeAxis.length - 1]} · 共{' '}
+          {data.timeAxis.length} 个月 · {Object.keys(data.groups).length} 个分组
         </p>
         
         {/* 分组快捷入口 */}
         <div className="flex flex-wrap gap-2">
           {Object.entries(data.groups).map(([groupKey, groupData]) => {
             // 统计该组的缺失值
-            const missingCount = Object.values(groupData.metrics).reduce((sum, m) => 
-              sum + (m.missingIndices?.length || 0), 0
+            const missingCount = Object.values(groupData.metrics).reduce(
+              (sum, m) => sum + (m.missingIndices?.length || 0),
+              0
             )
             
             return (
@@ -523,11 +690,11 @@ export default function GroupedTimeSeriesChart({ data, onMonthClick, repoKey }: 
                   setExpandedGroups(prev => new Set([...prev, groupKey]))
                   document.getElementById(`group-${groupKey}`)?.scrollIntoView({ behavior: 'smooth' })
                 }}
-                className={`
-                  flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all
-                  border border-cyber-border hover:border-cyber-primary/50
-                  ${expandedGroups.has(groupKey) ? 'bg-cyber-primary/10 text-cyber-primary' : 'bg-cyber-bg text-cyber-muted'}
-                `}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all border border-cyber-border hover:border-cyber-primary/50 ${
+                  expandedGroups.has(groupKey)
+                    ? 'bg-cyber-primary/10 text-cyber-primary'
+                    : 'bg-cyber-bg text-cyber-muted'
+                }`}
               >
                 <span>{GROUP_ICONS[groupKey] || '📊'}</span>
                 <span className="font-chinese">{groupData.name}</span>
