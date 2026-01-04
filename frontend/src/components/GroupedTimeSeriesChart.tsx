@@ -258,12 +258,9 @@ export default function GroupedTimeSeriesChart({ data, onMonthClick, repoKey }: 
                         tick={{ fill: '#8b97a8', fontSize: 10 }}
                         tickLine={{ stroke: '#2d3a4f' }}
                         axisLine={{ stroke: '#2d3a4f' }}
-                        domain={[0, 'auto']}
-                        allowDataOverflow={false}
                         tickFormatter={(value) => {
-                          if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`
                           if (value >= 1000) return `${(value / 1000).toFixed(1)}k`
-                          return Math.round(value)
+                          return value
                         }}
                       />
                       
