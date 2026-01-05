@@ -2,6 +2,7 @@
   "name": "openvista-frontend",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "OpenVista - GitHub 仓库生态画像分析平台",
   "scripts": {
     "dev": "vite",

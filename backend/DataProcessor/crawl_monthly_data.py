@@ -21,9 +21,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from backend.DataProcessor.monthly_crawler import MonthlyCrawler
 from backend.DataProcessor.monthly_data_processor import MonthlyDataProcessor
 from backend.DataProcessor.github_text_crawler import OpenDiggerMetrics, GitHubTextCrawler
+from backend.DataProcessor.data_completeness_checker import DataCompletenessChecker
 
 
-def crawl_project_monthly(owner: str, repo: str, max_per_month: int = 50, enable_llm_summary: bool = True, skip_docs: bool = False):
+def crawl_project_monthly(owner: str, repo: str, max_per_month: int = 50, enable_llm_summary: bool = True, skip_docs: bool = False, resume: bool = True):
     """
     爬取项目的月度数据
     
@@ -33,7 +34,122 @@ def crawl_project_monthly(owner: str, repo: str, max_per_month: int = 50, enable
         max_per_month: 每月最多爬取的数量
         enable_llm_summary: 是否启用LLM摘要生成
         skip_docs: 是否跳过描述性文档爬取（README、LICENSE、docs等）
+    
+    Returns:
+        输出目录路径（如果数据已存在，返回已存在的目录路径）
     """
+    project_name = f"{owner}_{repo}"
+    data_dir = os.path.join(os.path.dirname(__file__), 'data')
+    project_dir = os.path.join(data_dir, project_name)
+    
+    # 检查数据完整性和是否需要续传
+    existing_folder_path = None
+    existing_months = []
+    existing_monthly_data = {}
+    resume_info = None
+    
+    if resume and os.path.exists(project_dir):
+        checker = DataCompletenessChecker(data_dir)
+        resume_info = checker.get_resume_info(owner, repo)
+        
+        if resume_info['needs_resume'] and resume_info['data_path']:
+            existing_folder_path = resume_info['data_path']
+            missing_months = resume_info.get('missing_months', [])
+            
+            # 获取已存在的月份（用于传递给爬虫，跳过这些月份）
+            checker = DataCompletenessChecker(data_dir)
+            completeness = checker.check_project_completeness(owner, repo)
+            existing_months = completeness.get('existing_months', [])
+            
+            # 加载已有数据
+            if resume_info['resume_type'] == 'months' and existing_months:
+                # 只续传月份，需要加载已有数据
+                timeseries_for_model_dir = os.path.join(existing_folder_path, 'timeseries_for_model')
+                if os.path.exists(timeseries_for_model_dir):
+                    try:
+                        # 从 all_months.json 或单个文件加载已有数据
+                        all_months_file = os.path.join(timeseries_for_model_dir, 'all_months.json')
+                        if os.path.exists(all_months_file):
+                            with open(all_months_file, 'r', encoding='utf-8') as f:
+                                all_months_data = json.load(f)
+                                if isinstance(all_months_data, dict):
+                                    # 转换为 monthly_data 格式（只加载已存在的月份）
+                                    for month, month_data in all_months_data.items():
+                                        if month not in existing_months:
+                                            continue  # 跳过缺失的月份，只保留已存在的
+                                        # 提取 issues 和 commits
+                                        existing_monthly_data[month] = {
+                                            'month': month,
+                                            'issues': month_data.get('issues', []),
+                                            'commits': month_data.get('commits', []),
+                                            'releases': month_data.get('releases', [])
+                                        }
+                    except Exception as e:
+                        print(f"  ⚠ 加载已有数据失败: {e}")
+            
+            print(f"\n{'='*80}")
+            print(f"检测到不完整的数据，准备续传")
+            print(f"{'='*80}")
+            print(f"续传类型: {resume_info['resume_type']}")
+            if missing_months:
+                print(f"缺失月份: {len(missing_months)} 个月 ({', '.join(missing_months[:5])}{'...' if len(missing_months) > 5 else ''})")
+            if existing_months:
+                print(f"已有月份: {len(existing_months)} 个月")
+            print(f"数据路径: {existing_folder_path}\n")
+        elif not resume_info['needs_resume']:
+            # 数据完整，直接返回
+            if resume_info['data_path']:
+                print(f"\n{'='*80}")
+                print(f"项目 {owner}/{repo} 的数据已完整")
+                print(f"{'='*80}")
+                print(f"已存在的数据目录: {resume_info['data_path']}")
+                print(f"跳过爬取，直接使用已有数据\n")
+                return resume_info['data_path']
+    
+    # 如果 resume=False 或没有找到不完整数据，检查是否数据已存在（完整检查）
+    if not resume_info or (not resume_info['needs_resume'] and not existing_folder_path):
+        if os.path.exists(project_dir):
+            processed_folders = [
+                f for f in os.listdir(project_dir)
+                if os.path.isdir(os.path.join(project_dir, f)) and 
+                ('monthly_data_' in f or '_processed' in f)
+            ]
+            
+            if processed_folders:
+                processed_folders.sort(reverse=True)
+                latest_folder = processed_folders[0]
+                folder_path = os.path.join(project_dir, latest_folder)
+                timeseries_file = os.path.join(folder_path, 'timeseries_data.json')
+                timeseries_for_model_dir = os.path.join(folder_path, 'timeseries_for_model')
+                has_timeseries_data = False
+                
+                if os.path.exists(timeseries_file):
+                    try:
+                        if os.path.getsize(timeseries_file) > 0:
+                            has_timeseries_data = True
+                    except Exception:
+                        pass
+                
+                if not has_timeseries_data and os.path.exists(timeseries_for_model_dir):
+                    try:
+                        json_files = [f for f in os.listdir(timeseries_for_model_dir) if f.endswith('.json') and f != 'all_months.json']
+                        if len(json_files) > 0:
+                            for json_file in json_files[:3]:
+                                file_path = os.path.join(timeseries_for_model_dir, json_file)
+                                if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+                                    has_timeseries_data = True
+                                    break
+                    except Exception as e:
+                        print(f"  检查 timeseries_for_model 目录失败: {e}")
+                
+                if has_timeseries_data:
+                    print(f"\n{'='*80}")
+                    print(f"项目 {owner}/{repo} 的数据已存在")
+                    print(f"{'='*80}")
+                    print(f"已存在的数据目录: {folder_path}")
+                    print(f"跳过爬取，直接使用已有数据\n")
+                    return folder_path
+    
     print(f"\n{'='*80}")
     print(f"开始爬取项目: {owner}/{repo}")
     print(f"{'='*80}\n")
@@ -179,15 +295,21 @@ def crawl_project_monthly(owner: str, repo: str, max_per_month: int = 50, enable
     
     processor = MonthlyDataProcessor(llm_client=llm_client, skip_llm_summary=not enable_llm_summary)
     
-    # 创建输出目录
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = os.path.join(
-        os.path.dirname(__file__),
-        'data',
-        f"{owner}_{repo}",
-        f"monthly_data_{timestamp}"
-    )
-    os.makedirs(output_dir, exist_ok=True)
+    # 创建输出目录（如果续传，使用已有目录；否则创建新目录）
+    if existing_folder_path and resume_info and resume_info['resume_type'] == 'months':
+        # 续传月份数据，使用已有目录
+        output_dir = existing_folder_path
+        print(f"  → 使用已有数据目录进行续传: {output_dir}")
+    else:
+        # 创建新目录
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_dir = os.path.join(
+            os.path.dirname(__file__),
+            'data',
+            f"{owner}_{repo}",
+            f"monthly_data_{timestamp}"
+        )
+        os.makedirs(output_dir, exist_ok=True)
     
     # 提取静态文本并保存到MaxKB（如果不跳过文档）
     if not skip_docs and static_docs:
@@ -200,17 +322,33 @@ def crawl_project_monthly(owner: str, repo: str, max_per_month: int = 50, enable
     
     # ========== 步骤3: 爬取issue等时序文本 ==========
     print("\n[3/4] 爬取Issue/Commit/Release时序文本（已移除PR爬取，Issues只爬Top-3热度）...")
+    if existing_months and resume_info and resume_info['resume_type'] == 'months':
+        missing_months = resume_info.get('missing_months', [])
+        print(f"  → 断点续传模式：已有 {len(existing_months)} 个月份，只爬取缺失的 {len(missing_months)} 个月份")
     print("  → 速率控制: 每次请求延迟0.2秒")
+    
+    # 准备已有数据（用于合并）
+    existing_data_for_crawler = None
+    if existing_monthly_data:
+        existing_data_for_crawler = {
+            'monthly_data': existing_monthly_data
+        }
+    
     monthly_data_result = monthly_crawler.crawl_all_months(
         owner, repo, 
         max_per_month=max_per_month,
-        progress_callback=lambda idx, title, desc, progress: print(f"  [{idx+1}] {title}: {desc}")
+        progress_callback=lambda idx, title, desc, progress: print(f"  [{idx+1}] {title}: {desc}"),
+        existing_months=existing_months if existing_months else None,
+        existing_data=existing_data_for_crawler
     )
     
     monthly_data = monthly_data_result['monthly_data']
     repo_info = monthly_data_result['repo_info']
     
-    print(f"  ✓ 爬取了 {len(monthly_data)} 个月的数据")
+    if existing_months:
+        print(f"  ✓ 合并完成：已有 {len(existing_monthly_data)} 个月 + 新爬取 {len(monthly_data) - len(existing_monthly_data)} 个月 = 总计 {len(monthly_data)} 个月")
+    else:
+        print(f"  ✓ 爬取了 {len(monthly_data)} 个月的数据")
     
     # ========== 步骤4: 时序文本+时序指标，按照月份时序对齐 ==========
     print("\n[4/4] 时序对齐：合并时序文本和时序指标...")
