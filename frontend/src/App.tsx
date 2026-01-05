@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Activity, TrendingUp, GitBranch, Users, AlertCircle, FileText, BarChart3, RefreshCw, Sparkles, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react'
+import { Activity, TrendingUp, GitBranch, Users, AlertCircle, FileText, BarChart3, RefreshCw, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
 import GroupedTimeSeriesChart from './components/GroupedTimeSeriesChart'
 import IssueAnalysis from './components/IssueAnalysis'
-import DataAnalysisPanel from './components/DataAnalysisPanel'
 import Header from './components/Header'
 import StatsCard from './components/StatsCard'
 import ProjectSearch from './components/ProjectSearch'
@@ -191,25 +190,6 @@ function App() {
         monthlyKeywords: issuesData.monthlyKeywords || {},
         projectSummary: summaryData.projectSummary || null
       })
-      
-      // 检查是否缺少文本数据（用于 AI 助手）
-      // 无论是否有 aiSummary，都检查一下是否有完整的文本数据
-      const parts = projectName.includes('/') ? projectName.split('/') : projectName.split('_')
-      if (parts.length >= 2) {
-        try {
-          const checkResp = await fetch(`/api/check_project?owner=${encodeURIComponent(parts[0])}&repo=${encodeURIComponent(parts.slice(1).join('_'))}`)
-          const checkData = await checkResp.json()
-          // 如果缺少文本或缺少 aiSummary，都提示补爬
-          const needsCrawl = checkData.needsTextCrawl || !summaryData.projectSummary?.aiSummary
-          setNeedsTextCrawl(needsCrawl)
-          console.log('[检查文本数据]', { needsTextCrawl: checkData.needsTextCrawl, hasAiSummary: !!summaryData.projectSummary?.aiSummary, needsCrawl })
-        } catch (e) {
-          console.warn('检查文本数据失败:', e)
-          setNeedsTextCrawl(!summaryData.projectSummary?.aiSummary)
-        }
-      } else {
-        setNeedsTextCrawl(!summaryData.projectSummary?.aiSummary)
-      }
     } catch (err) {
       setError('无法连接到后端服务，请确保后端已启动')
       console.error('Error fetching data:', err)
@@ -278,80 +258,44 @@ function App() {
     setActiveTab('issues')
   }
 
-  // 从分组数据中提取统计信息（含变化率）
+  // 从分组数据中提取统计信息
   const getStats = () => {
     if (!data?.groupedTimeseries?.groups) {
-      return { 
-        stars: { value: 0, change: '', month: '' },
-        commits: { value: 0, change: '', month: '' },
-        prs: { value: 0, change: '', month: '' },
-        contributors: { value: 0, change: '', month: '' }
-      }
+      return { stars: 0, commits: 0, prs: 0, contributors: 0 }
     }
     
     const groups = data.groupedTimeseries.groups
-    const timeAxis = data.groupedTimeseries.timeAxis || []
     
-    const getLatestWithChange = (groupKey: string, metricKey: string) => {
+    const getLatestValue = (groupKey: string, metricKey: string) => {
       const group = groups[groupKey]
-      if (!group?.metrics) return { value: 0, change: '', month: '' }
+      if (!group?.metrics) return 0
       
       // 找到匹配的指标
       const metric = Object.entries(group.metrics).find(([key]) => 
         key.toLowerCase().includes(metricKey.toLowerCase())
       )
       
-      if (!metric?.[1]?.data) return { value: 0, change: '', month: '' }
+      if (!metric?.[1]?.data) return 0
       
+      // 找最后一个非空值
       const arr = metric[1].data
-      
-      // 找最后一个非空值及其索引
-      let latestValue = 0
-      let latestIndex = -1
       for (let i = arr.length - 1; i >= 0; i--) {
         if (arr[i] !== null && arr[i] !== undefined) {
-          latestValue = arr[i] as number
-          latestIndex = i
-          break
+          return arr[i] as number
         }
       }
-      
-      // 找倒数第二个非空值计算环比
-      let prevValue = 0
-      for (let i = latestIndex - 1; i >= 0; i--) {
-        if (arr[i] !== null && arr[i] !== undefined) {
-          prevValue = arr[i] as number
-          break
-        }
-      }
-      
-      // 计算环比变化率
-      let change = ''
-      if (prevValue > 0 && latestValue !== prevValue) {
-        const changeRate = ((latestValue - prevValue) / prevValue) * 100
-        if (changeRate > 0) {
-          change = `+${changeRate.toFixed(1)}%`
-        } else {
-          change = `${changeRate.toFixed(1)}%`
-        }
-      }
-      
-      // 获取月份标签
-      const month = latestIndex >= 0 && timeAxis[latestIndex] ? timeAxis[latestIndex] : ''
-      
-      return { value: latestValue, change, month }
+      return 0
     }
     
     return {
-      stars: getLatestWithChange('popularity', 'star'),
-      commits: getLatestWithChange('development', '提交'),
-      prs: getLatestWithChange('development', 'pr接受'),
-      contributors: getLatestWithChange('contributors', '参与者')
+      stars: getLatestValue('popularity', 'star'),
+      commits: getLatestValue('development', '提交'),
+      prs: getLatestValue('development', 'pr接受'),
+      contributors: getLatestValue('contributors', '参与者')
     }
   }
 
   const stats = getStats()
-  const latestMonth = stats.stars.month || stats.commits.month || ''
 
   // 显示首页（只有在没有项目且已初始化时才显示）
   if (showHomePage && isInitialized) {
@@ -433,11 +377,8 @@ function App() {
                   {data.repoKey}
                 </h2>
                 <p className="text-sm text-cyber-muted font-chinese">
-                  OpenDigger 数据 · {data.groupedTimeseries.startMonth} 至 {data.groupedTimeseries.endMonth}
+                  真实数据 · {data.groupedTimeseries.startMonth} 至 {data.groupedTimeseries.endMonth}
                   · {data.groupedTimeseries.timeAxis.length} 个月
-                </p>
-                <p className="text-xs text-cyber-muted/60 font-chinese mt-1">
-                  💡 OpenDigger 数据通常有 2-3 个月延迟，最新月份可能暂无数据
                 </p>
               </div>
               <button
@@ -453,91 +394,40 @@ function App() {
 
         {/* 统计卡片 */}
         <motion.div 
-          className="mb-8"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          {/* 月份说明 */}
-          {latestMonth && (
-            <div className="mb-4 flex items-center gap-2 text-sm text-cyber-muted font-chinese">
-              <span className="inline-block w-2 h-2 rounded-full bg-cyber-primary animate-pulse" />
-              <span>以下数据为 <span className="text-cyber-primary font-mono">{latestMonth}</span> 最新月指标</span>
-              <span className="text-cyber-muted/50">（环比上月）</span>
-            </div>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatsCard
             icon={<Activity className="w-6 h-6" />}
-              title="Star 增量"
-              value={Math.round(stats.stars.value)}
-              change={stats.stars.change}
+            title="Star 数"
+            value={Math.round(stats.stars)}
+            change=""
             color="primary"
           />
           <StatsCard
             icon={<GitBranch className="w-6 h-6" />}
-              title="代码提交数"
-              value={Math.round(stats.commits.value)}
-              change={stats.commits.change}
+            title="代码提交"
+            value={Math.round(stats.commits)}
+            change=""
             color="success"
           />
           <StatsCard
             icon={<TrendingUp className="w-6 h-6" />}
-              title="PR 接受数"
-              value={Math.round(stats.prs.value)}
-              change={stats.prs.change}
+            title="PR 接受"
+            value={Math.round(stats.prs)}
+            change=""
             color="secondary"
           />
           <StatsCard
             icon={<Users className="w-6 h-6" />}
-              title="活跃参与者"
-              value={Math.round(stats.contributors.value)}
-              change={stats.contributors.change}
+            title="参与者"
+            value={Math.round(stats.contributors)}
+            change=""
             color="accent"
           />
-          </div>
         </motion.div>
-
-        {/* 缺少文本数据提示 - 当缺少文本数据时显示 */}
-        {needsTextCrawl && (
-          <motion.div
-            className="mb-8 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-yellow-400" />
-                <div>
-                  <p className="text-yellow-200 font-chinese text-sm">
-                    该项目缺少描述性文本数据，AI 助手功能可能受限
-                  </p>
-                  <p className="text-yellow-200/60 font-chinese text-xs mt-1">
-                    点击补爬可获取 README、文档等文本数据，用于知识库问答
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={handleCrawlText}
-                disabled={crawlingText}
-                className="flex items-center gap-2 px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 
-                         text-yellow-200 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
-              >
-                {crawlingText ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">补爬中...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4" />
-                    <span className="text-sm">补爬文本</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </motion.div>
-        )}
 
         {/* AI 项目摘要 */}
         {data?.projectSummary?.aiSummary && (
@@ -590,14 +480,9 @@ function App() {
                       </p>
                     </div>
                     
-                    {/* Issue 统计摘要（抽样数据） */}
+                    {/* Issue 统计摘要 */}
                     {data.projectSummary.issueStats && (
-                      <div className="mt-4">
-                        <p className="text-xs text-cyber-muted font-chinese mb-2 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full"></span>
-                          以下为抽样统计，仅代表样本分布趋势，非实际总数
-                        </p>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="p-3 bg-cyber-primary/10 rounded-lg text-center">
                           <div className="text-2xl font-display font-bold text-cyber-primary">
                             {data.projectSummary.issueStats.feature || 0}
@@ -620,8 +505,7 @@ function App() {
                           <div className="text-2xl font-display font-bold text-cyber-text">
                             {data.projectSummary.issueStats.total || 0}
                           </div>
-                            <div className="text-xs text-cyber-muted font-chinese">抽样总数</div>
-                          </div>
+                          <div className="text-xs text-cyber-muted font-chinese">Issue 总数</div>
                         </div>
                       </div>
                     )}
@@ -651,12 +535,6 @@ function App() {
             onClick={() => setActiveTab('issues')}
             icon={<FileText className="w-4 h-4" />}
             label="Issue 分析"
-          />
-          <TabButton
-            active={activeTab === 'analysis'}
-            onClick={() => setActiveTab('analysis')}
-            icon={<TrendingUp className="w-4 h-4" />}
-            label="数据分析"
           />
         </motion.div>
 
@@ -691,22 +569,6 @@ function App() {
                 keywords={data?.monthlyKeywords}
                 selectedMonth={selectedMonth}
                 onMonthSelect={setSelectedMonth}
-                repoKey={data?.repoKey || ''}
-              />
-            </motion.div>
-          )}
-          
-          {activeTab === 'analysis' && (
-            <motion.div
-              key="analysis"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <DataAnalysisPanel 
-                repoKey={data?.repoKey || ''}
-                groupedData={data?.groupedTimeseries}
               />
             </motion.div>
           )}
