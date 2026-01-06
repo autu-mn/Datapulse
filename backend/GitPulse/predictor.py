@@ -1,6 +1,7 @@
 """
 GitPulse 预测适配器
 将 GitPulse 模型集成到 OpenVista 后端
+支持从 Hugging Face 加载模型
 """
 
 import os
@@ -22,11 +23,90 @@ except ImportError as e:
     print(f"[WARN] GitPulse 未安装: {e}")
     print("请安装依赖: pip install -r GitPulse/requirements_predict.txt")
 
+# Hugging Face 模型配置
+HUGGINGFACE_MODEL_ID = os.getenv('HUGGINGFACE_MODEL_ID', 'Osacato/Gitpulse')
+USE_HUGGINGFACE = os.getenv('USE_HUGGINGFACE', 'true').lower() == 'true'
+
+
+def download_model_from_huggingface(model_id: str, cache_dir: str = None):
+    """
+    从 Hugging Face 下载模型
+    
+    Args:
+        model_id: Hugging Face 模型 ID，如 'Osacato/Gitpulse'
+        cache_dir: 缓存目录，如果为 None 则使用默认缓存目录
+    
+    Returns:
+        model_path: 模型文件路径
+    """
+    try:
+        from huggingface_hub import hf_hub_download, snapshot_download
+        
+        if cache_dir is None:
+            cache_dir = os.path.join(os.path.expanduser('~'), '.cache', 'huggingface', 'hub')
+        
+        print(f"[INFO] 正在从 Hugging Face 下载模型: {model_id}")
+        
+        # 尝试下载整个仓库
+        try:
+            repo_path = snapshot_download(
+                repo_id=model_id,
+                cache_dir=cache_dir,
+                local_files_only=False
+            )
+            print(f"[OK] 模型已下载到: {repo_path}")
+            
+            # 查找模型文件（通常是 .pt 或 .pth 文件）
+            model_files = []
+            for root, dirs, files in os.walk(repo_path):
+                for file in files:
+                    if file.endswith(('.pt', '.pth', '.pkl')):
+                        model_files.append(os.path.join(root, file))
+            
+            if model_files:
+                # 优先选择 best_model.pt 或包含 'best' 的文件
+                best_model = next((f for f in model_files if 'best' in f.lower()), model_files[0])
+                return best_model
+            else:
+                # 如果没有找到模型文件，返回仓库路径
+                return repo_path
+                
+        except Exception as e:
+            print(f"[WARN] 下载整个仓库失败: {e}")
+            # 尝试下载单个文件
+            try:
+                # 常见的模型文件名
+                possible_files = ['best_model.pt', 'model.pt', 'pytorch_model.bin', 'model.safetensors']
+                for filename in possible_files:
+                    try:
+                        model_path = hf_hub_download(
+                            repo_id=model_id,
+                            filename=filename,
+                            cache_dir=cache_dir
+                        )
+                        print(f"[OK] 模型文件已下载: {model_path}")
+                        return model_path
+                    except:
+                        continue
+            except Exception as e2:
+                print(f"[ERROR] 下载模型文件失败: {e2}")
+                raise
+        
+        raise FileNotFoundError(f"无法从 Hugging Face 找到模型文件")
+        
+    except ImportError:
+        print("[ERROR] 请安装 huggingface_hub: pip install huggingface_hub")
+        raise
+    except Exception as e:
+        print(f"[ERROR] 从 Hugging Face 下载模型失败: {e}")
+        raise
+
 
 class GitPulsePredictor:
     """
     GitPulse 预测器适配器
     提供与 LLMTimeSeriesPredictor 兼容的接口
+    支持从 Hugging Face 加载模型
     """
     
     def __init__(self, enable_cache: bool = True):
@@ -39,30 +119,48 @@ class GitPulsePredictor:
         if not GITPULSE_AVAILABLE:
             raise ImportError("GitPulse 未安装，请先安装依赖")
         
-        # 模型路径
-        model_path = os.path.join(
-            os.path.dirname(__file__), '..', '..', 'GitPulse', 
-            'predict', 'models', 'best_model.pt'
-        )
+        # 确定模型路径
+        model_path = None
         
-        # 如果模型文件不存在，尝试使用训练检查点
-        if not os.path.exists(model_path):
-            alt_path = os.path.join(
-                os.path.dirname(__file__), '..', '..', 'GitPulse',
-                'training', 'checkpoints', 'best_model_cond_gru_mm.pt'
+        if USE_HUGGINGFACE:
+            try:
+                print(f"[INFO] 尝试从 Hugging Face 加载模型: {HUGGINGFACE_MODEL_ID}")
+                model_path = download_model_from_huggingface(HUGGINGFACE_MODEL_ID)
+            except Exception as e:
+                print(f"[WARN] 从 Hugging Face 加载失败: {e}")
+                print("[INFO] 回退到本地模型文件")
+                model_path = None
+        
+        # 如果 Hugging Face 加载失败或未启用，尝试本地文件
+        if model_path is None or not os.path.exists(model_path):
+            # 本地模型路径
+            local_model_path = os.path.join(
+                os.path.dirname(__file__), '..', '..', 'GitPulse', 
+                'predict', 'models', 'best_model.pt'
             )
-            if os.path.exists(alt_path):
-                model_path = alt_path
-            else:
-                raise FileNotFoundError(
-                    f"GitPulse 模型文件不存在。请确保模型文件位于:\n"
-                    f"  - {model_path}\n"
-                    f"  或\n"
-                    f"  - {alt_path}"
+            
+            # 如果模型文件不存在，尝试使用训练检查点
+            if not os.path.exists(local_model_path):
+                alt_path = os.path.join(
+                    os.path.dirname(__file__), '..', '..', 'GitPulse',
+                    'training', 'checkpoints', 'best_model_cond_gru_mm.pt'
                 )
+                if os.path.exists(alt_path):
+                    model_path = alt_path
+                else:
+                    raise FileNotFoundError(
+                        f"GitPulse 模型文件不存在。请确保模型文件位于:\n"
+                        f"  - {local_model_path}\n"
+                        f"  或\n"
+                        f"  - {alt_path}\n"
+                        f"或设置 USE_HUGGINGFACE=true 从 Hugging Face 下载"
+                    )
+            else:
+                model_path = local_model_path
         
         # 初始化预测器
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        print(f"[INFO] 使用设备: {device}, 模型路径: {model_path}")
         self.predictor = RepoPredictor(model_path, device=device)
         self.device = device  # 保存设备信息供外部访问
         
@@ -546,4 +644,3 @@ class GitPulsePredictor:
                         base_confidence *= 0.9
         
         return round(min(base_confidence, 0.95), 2)
-

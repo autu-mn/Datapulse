@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Activity, TrendingUp, GitBranch, Users, AlertCircle, FileText, BarChart3, RefreshCw, Sparkles, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react'
+import { Activity, TrendingUp, GitBranch, Users, AlertCircle, FileText, BarChart3, RefreshCw, Sparkles, ChevronDown, ChevronUp, Download, Loader2, Award } from 'lucide-react'
 import GroupedTimeSeriesChart from './components/GroupedTimeSeriesChart'
 import IssueAnalysis from './components/IssueAnalysis'
 import DataAnalysisPanel from './components/DataAnalysisPanel'
+import CHAOSSEvaluation from './components/CHAOSSEvaluation'
 import Header from './components/Header'
 import StatsCard from './components/StatsCard'
 import ProjectSearch from './components/ProjectSearch'
@@ -82,8 +83,8 @@ function App() {
     const saved = localStorage.getItem('selectedMonth')
     return saved || null
   })
-  const [activeTab, setActiveTab] = useState<'timeseries' | 'issues' | 'analysis'>(() => {
-    const saved = localStorage.getItem('activeTab') as 'timeseries' | 'issues' | 'analysis' | null
+  const [activeTab, setActiveTab] = useState<'timeseries' | 'issues' | 'analysis' | 'chaoss'>(() => {
+    const saved = localStorage.getItem('activeTab') as 'timeseries' | 'issues' | 'analysis' | 'chaoss' | null
     return saved || 'timeseries'
   })
   const [repoInfo, setRepoInfo] = useState<any>(null)
@@ -113,7 +114,7 @@ function App() {
       const savedProject = localStorage.getItem('currentProject')
       
       // 恢复标签页和月份
-      const savedTab = localStorage.getItem('activeTab') as 'timeseries' | 'issues' | 'analysis' | null
+      const savedTab = localStorage.getItem('activeTab') as 'timeseries' | 'issues' | 'analysis' | 'chaoss' | null
       const savedMonth = localStorage.getItem('selectedMonth')
       if (savedTab) {
         setActiveTab(savedTab)
@@ -773,6 +774,12 @@ function App() {
             icon={<TrendingUp className="w-4 h-4" />}
             label="数据分析"
           />
+          <TabButton
+            active={activeTab === 'chaoss'}
+            onClick={() => setActiveTab('chaoss')}
+            icon={<Award className="w-4 h-4" />}
+            label="CHAOSS 评价"
+          />
         </motion.div>
 
         {/* 主内容区 */}
@@ -823,6 +830,18 @@ function App() {
                 repoKey={data?.repoKey || ''}
                 groupedData={data?.groupedTimeseries}
               />
+            </motion.div>
+          )}
+          
+          {activeTab === 'chaoss' && (
+            <motion.div
+              key="chaoss"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <CHAOSSEvaluation repoKey={currentProject} />
             </motion.div>
           )}
         </AnimatePresence>

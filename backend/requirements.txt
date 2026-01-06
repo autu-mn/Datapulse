@@ -6,3 +6,6 @@ jieba
 prophet
 pandas
 numpy
+torch
+transformers
+huggingface_hub
