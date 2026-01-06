@@ -99,7 +99,7 @@ qa_agent = QAAgent()
 # 预测解释器实例
 prediction_explainer = PredictionExplainer()
 
-# CHAOSS 评估器实例
+# CHAOSS 评估器实例（使用增强版本）
 chaoss_evaluator = CHAOSSEvaluator(data_service)
 
 
