@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion'
-import { Database, Github, Sparkles, MessageSquare } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Database, Github } from 'lucide-react'
 
 interface HeaderProps {
   repoName?: string
@@ -44,17 +43,6 @@ export default function Header({ repoName, onBackToHome }: HeaderProps) {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
           >
-            <Link
-              to="/ai"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-cyber-card border border-cyber-border
-                       hover:border-cyber-primary/50 hover:bg-cyber-primary/10 transition-all
-                       text-cyber-muted hover:text-cyber-primary"
-              title="AI助手"
-            >
-              <MessageSquare className="w-5 h-5" />
-              <span className="font-chinese text-sm hidden sm:inline">AI助手</span>
-            </Link>
-            
             {repoName && (
               <div className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-lg bg-cyber-card border border-cyber-border">
                 <Github className="w-4 h-4 text-cyber-muted" />
@@ -71,11 +59,3 @@ export default function Header({ repoName, onBackToHome }: HeaderProps) {
   )
 }
 
-function FeatureTag({ icon, text }: { icon: React.ReactNode; text: string }) {
-  return (
-    <div className="flex items-center gap-2 text-cyber-muted hover:text-cyber-primary transition-colors">
-      {icon}
-      <span className="text-sm font-chinese">{text}</span>
-    </div>
-  )
-}

@@ -12,14 +12,67 @@ import RepoHeader from './components/RepoHeader'
 import type { DemoData, GroupedTimeSeriesData, IssueData } from './types'
 
 function App() {
-  // 初始化时从 localStorage 恢复项目信息
-  const [currentProject, setCurrentProject] = useState<string>(() => {
-    const saved = localStorage.getItem('currentProject')
-    return saved || ''
-  })
+  // 判断是否显示首页：
+  // - 首次访问（新标签页）：显示首页，不恢复项目
+  // - 刷新页面：恢复项目状态，不显示首页
   const [showHomePage, setShowHomePage] = useState<boolean>(() => {
-    // 如果有保存的项目，初始状态就不显示首页
-    return !localStorage.getItem('currentProject')
+    // 使用 Performance API 检测页面加载类型
+    let isReload = false
+    try {
+      const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming
+      isReload = navigation?.type === 'reload'
+    } catch (e) {
+      // 兼容性处理：如果 Performance API 不可用，使用 sessionStorage
+      const hasVisited = sessionStorage.getItem('hasVisited')
+      if (!hasVisited) {
+        sessionStorage.setItem('hasVisited', 'true')
+        return true // 首次访问
+      }
+      // 刷新页面，如果有保存的项目就不显示首页
+      return !localStorage.getItem('currentProject')
+    }
+    
+    const hasVisited = sessionStorage.getItem('hasVisited')
+    
+    // 如果是刷新页面且之前访问过，恢复项目状态
+    if (isReload && hasVisited) {
+      const savedProject = localStorage.getItem('currentProject')
+      if (savedProject) {
+        return false // 刷新页面且有项目，不显示首页
+      }
+    }
+    
+    // 首次访问或没有保存的项目，显示首页
+    if (!hasVisited) {
+      sessionStorage.setItem('hasVisited', 'true')
+    }
+    return true
+  })
+  // 初始化时：如果是刷新页面且有保存的项目，恢复项目；否则不恢复
+  const [currentProject, setCurrentProject] = useState<string>(() => {
+    let isReload = false
+    try {
+      const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming
+      isReload = navigation?.type === 'reload'
+    } catch (e) {
+      // 兼容性处理
+      const hasVisited = sessionStorage.getItem('hasVisited')
+      if (hasVisited) {
+        const saved = localStorage.getItem('currentProject')
+        return saved || ''
+      }
+      return ''
+    }
+    
+    const hasVisited = sessionStorage.getItem('hasVisited')
+    
+    // 只有刷新页面且之前访问过时才恢复项目
+    if (isReload && hasVisited) {
+      const saved = localStorage.getItem('currentProject')
+      return saved || ''
+    }
+    // 首次访问，不恢复项目
+    return ''
   })
   
   const [data, setData] = useState<DemoData | null>(null)
@@ -39,11 +92,26 @@ function App() {
   const [crawlingText, setCrawlingText] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
 
-  // 页面加载时，如果有保存的项目，恢复并加载数据
+  // 页面加载时，如果有保存的项目且是刷新页面，恢复并加载数据
   useEffect(() => {
-    const savedProject = localStorage.getItem('currentProject')
-    if (savedProject && !isInitialized) {
-      console.log('[页面恢复] 从 localStorage 恢复项目:', savedProject)
+    if (!isInitialized) {
+      // 使用 Performance API 检测页面加载类型
+      let isReload = false
+      try {
+        const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming
+        isReload = navigation?.type === 'reload'
+      } catch (e) {
+        // 兼容性处理：如果 Performance API 不可用，使用 sessionStorage
+        console.warn('Performance API 不可用，使用 sessionStorage 判断')
+        const hasVisited = sessionStorage.getItem('hasVisited')
+        if (hasVisited) {
+          isReload = true // 假设之前访问过就是刷新
+        }
+      }
+      
+      const hasVisited = sessionStorage.getItem('hasVisited')
+      const savedProject = localStorage.getItem('currentProject')
+      
       // 恢复标签页和月份
       const savedTab = localStorage.getItem('activeTab') as 'timeseries' | 'issues' | 'analysis' | null
       const savedMonth = localStorage.getItem('selectedMonth')
@@ -53,15 +121,31 @@ function App() {
       if (savedMonth) {
         setSelectedMonth(savedMonth)
       }
-      setCurrentProject(savedProject)
-      setShowHomePage(false)
-      setIsInitialized(true)
-      // 延迟加载数据，确保组件已完全初始化
-      setTimeout(() => {
-        fetchDataForProject(savedProject)
-      }, 100)
-    } else if (!savedProject) {
-      setIsInitialized(true)
+      
+      // 如果是刷新页面且之前访问过且有保存的项目，恢复项目状态
+      if (isReload && hasVisited && savedProject) {
+        console.log('[页面恢复] 刷新页面，恢复项目:', savedProject)
+        setCurrentProject(savedProject)
+        setShowHomePage(false)
+        setIsInitialized(true)
+        // 延迟加载数据，确保组件已完全初始化
+        setTimeout(() => {
+          fetchDataForProject(savedProject)
+        }, 100)
+      } else {
+        // 首次访问（新标签页），显示首页，确保清空项目数据
+        console.log('[页面初始化] 首次访问，显示首页查询界面', {
+          isReload,
+          hasVisited,
+          savedProject,
+          showHomePage
+        })
+        // 确保首次访问时清空项目数据
+        setCurrentProject('')
+        setData(null)
+        setRepoInfo(null)
+        setIsInitialized(true)
+      }
     }
   }, [isInitialized])
 
@@ -199,10 +283,15 @@ function App() {
         try {
           const checkResp = await fetch(`/api/check_project?owner=${encodeURIComponent(parts[0])}&repo=${encodeURIComponent(parts.slice(1).join('_'))}`)
           const checkData = await checkResp.json()
-          // 如果缺少文本或缺少 aiSummary，都提示补爬
-          const needsCrawl = checkData.needsTextCrawl || !summaryData.projectSummary?.aiSummary
-          setNeedsTextCrawl(needsCrawl)
-          console.log('[检查文本数据]', { needsTextCrawl: checkData.needsTextCrawl, hasAiSummary: !!summaryData.projectSummary?.aiSummary, needsCrawl })
+          // 只根据后端返回的 needsTextCrawl 判断，不再依赖 aiSummary
+          // 因为补爬文本数据后，即使没有 aiSummary，也应该认为有文本数据了
+          setNeedsTextCrawl(checkData.needsTextCrawl || false)
+          console.log('[检查文本数据]', { 
+            needsTextCrawl: checkData.needsTextCrawl, 
+            hasText: checkData.hasText,
+            hasAiSummary: !!summaryData.projectSummary?.aiSummary,
+            finalNeedsCrawl: checkData.needsTextCrawl || false
+          })
         } catch (e) {
           console.warn('检查文本数据失败:', e)
           setNeedsTextCrawl(!summaryData.projectSummary?.aiSummary)
@@ -252,7 +341,21 @@ function App() {
       const result = await response.json()
       
       if (result.success) {
-        setNeedsTextCrawl(false)
+        // 补爬成功后，重新检查文本数据状态
+        const parts = currentProject.includes('/') ? currentProject.split('/') : currentProject.split('_')
+        if (parts.length >= 2) {
+          try {
+            const checkResp = await fetch(`/api/check_project?owner=${encodeURIComponent(parts[0])}&repo=${encodeURIComponent(parts.slice(1).join('_'))}`)
+            const checkData = await checkResp.json()
+            setNeedsTextCrawl(checkData.needsTextCrawl || false)
+            console.log('[补爬完成] 重新检查文本数据状态:', { needsTextCrawl: checkData.needsTextCrawl, hasText: checkData.hasText })
+          } catch (e) {
+            console.warn('补爬后检查文本数据失败:', e)
+            setNeedsTextCrawl(false)  // 如果检查失败，假设已成功
+          }
+        } else {
+          setNeedsTextCrawl(false)
+        }
         // 重新加载数据
         await fetchDataForProject(currentProject)
       } else {
@@ -353,13 +456,19 @@ function App() {
   const stats = getStats()
   const latestMonth = stats.stars.month || stats.commits.month || ''
 
-  // 显示首页（只有在没有项目且已初始化时才显示）
+  // 显示首页（优先检查，如果显示首页就直接返回）
   if (showHomePage && isInitialized) {
+    console.log('[渲染] 显示首页', { showHomePage, isInitialized, currentProject })
     return <HomePage onProjectReady={handleProjectReady} />
   }
   
   // 如果正在初始化且有项目，显示加载状态
   if (!isInitialized && currentProject) {
+    return <LoadingScreen />
+  }
+  
+  // 如果显示首页但未初始化，显示加载状态
+  if (showHomePage && !isInitialized) {
     return <LoadingScreen />
   }
 
@@ -402,7 +511,13 @@ function App() {
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyber-secondary/5 rounded-full blur-3xl" />
       </div>
 
-      <Header repoName={data?.repoKey} onBackToHome={() => setShowHomePage(true)} />
+      <Header repoName={data?.repoKey} onBackToHome={() => {
+        console.log('[返回首页] 清除当前项目并返回首页')
+        setCurrentProject('')
+        setShowHomePage(true)
+        setData(null)
+        setError(null)
+      }} />
 
       <main className="relative z-10 container mx-auto px-4 py-8">
         {/* 项目搜索区域 - 更自然的设计 */}

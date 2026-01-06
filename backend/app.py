@@ -438,21 +438,51 @@ def check_project_has_text(project_name: str) -> bool:
     if not os.path.exists(project_dir):
         return False
     
-    # 查找处理后的文件夹
-    for folder in os.listdir(project_dir):
-        folder_path = os.path.join(project_dir, folder)
-        if os.path.isdir(folder_path) and ('monthly_data_' in folder or '_processed' in folder):
-            # 检查是否有 text_for_maxkb 文件夹且有内容
-            text_dir = os.path.join(folder_path, 'text_for_maxkb')
-            if os.path.exists(text_dir):
-                # 检查是否有实际文件
+    # 查找所有处理后的文件夹（按时间倒序，优先检查最新的）
+    processed_folders = []
+    try:
+        for folder in os.listdir(project_dir):
+            folder_path = os.path.join(project_dir, folder)
+            if os.path.isdir(folder_path) and ('monthly_data_' in folder or '_processed' in folder):
+                processed_folders.append(folder_path)
+        # 按文件夹名称排序（最新的在前）
+        processed_folders.sort(reverse=True)
+    except Exception as e:
+        logger.warning(f"[检查文本数据] 无法读取项目目录 {project_dir}: {e}")
+        return False
+    
+    # 检查所有处理后的文件夹
+    for folder_path in processed_folders:
+        # 检查是否有 text_for_maxkb 文件夹且有内容
+        text_dir = os.path.join(folder_path, 'text_for_maxkb')
+        if os.path.exists(text_dir):
+            # 检查是否有实际文件（包括子目录中的文件）
+            try:
                 for root, dirs, files in os.walk(text_dir):
                     if files:
+                        # 过滤掉隐藏文件和临时文件
+                        valid_files = [f for f in files if not f.startswith('.')]
+                        if valid_files:
+                            logger.debug(f"[检查文本数据] 在 {text_dir} 找到 {len(valid_files)} 个文件")
+                            return True
+            except Exception as e:
+                logger.warning(f"[检查文本数据] 遍历 {text_dir} 时出错: {e}")
+                continue
+        
+        # 也检查 project_summary.json（包含 AI 摘要）
+        summary_file = os.path.join(folder_path, 'project_summary.json')
+        if os.path.exists(summary_file):
+            try:
+                import json
+                with open(summary_file, 'r', encoding='utf-8') as f:
+                    summary = json.load(f)
+                    # 如果有 AI 摘要，也算有文本数据
+                    if summary.get('aiSummary') or summary.get('projectSummary', {}).get('aiSummary'):
+                        logger.debug(f"[检查文本数据] 在 {summary_file} 找到 AI 摘要")
                         return True
-            # 也检查 project_summary.json
-            summary_file = os.path.join(folder_path, 'project_summary.json')
-            if os.path.exists(summary_file):
-                return True
+            except Exception as e:
+                logger.warning(f"[检查文本数据] 读取 {summary_file} 时出错: {e}")
+                continue
     
     return False
 
@@ -482,12 +512,22 @@ def crawl_project_text(project_name):
         # 获取 README
         readmes = crawler.get_readme(owner, repo)
         if readmes:
-            text_data['readme'] = readmes
+            # get_readme 可能返回单个字典或列表，统一转换为列表
+            if isinstance(readmes, dict):
+                text_data['readme'] = [readmes]
+            elif isinstance(readmes, list):
+                text_data['readme'] = readmes
+            else:
+                text_data['readme'] = []
         
         # 获取重要文档
         important_files = crawler.get_important_md_files(owner, repo, max_files=10)
         if important_files:
-            text_data['docs'] = important_files
+            # get_important_md_files 返回列表，但确保是列表格式
+            if isinstance(important_files, list):
+                text_data['docs'] = important_files
+            else:
+                text_data['docs'] = []
         
         # 保存到项目目录
         if text_data:
@@ -498,13 +538,18 @@ def crawl_project_text(project_name):
             data_dir = os.path.join(os.path.dirname(__file__), 'DataProcessor', 'data')
             project_dir = os.path.join(data_dir, project_name)
             
-            # 找到或创建处理文件夹
+            # 找到或创建处理文件夹（优先使用最新的文件夹）
             processed_folder = None
             if os.path.exists(project_dir):
+                processed_folders = []
                 for folder in os.listdir(project_dir):
-                    if 'monthly_data_' in folder or '_processed' in folder:
-                        processed_folder = os.path.join(project_dir, folder)
-                        break
+                    folder_path = os.path.join(project_dir, folder)
+                    if os.path.isdir(folder_path) and ('monthly_data_' in folder or '_processed' in folder):
+                        processed_folders.append(folder_path)
+                # 按文件夹名称排序（最新的在前）
+                if processed_folders:
+                    processed_folders.sort(reverse=True)
+                    processed_folder = processed_folders[0]  # 使用最新的文件夹
             
             if not processed_folder:
                 # 创建新的处理文件夹
