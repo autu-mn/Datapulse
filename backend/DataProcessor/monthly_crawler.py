@@ -842,9 +842,20 @@ class MonthlyCrawler:
         
         return months
     
-    def crawl_all_months(self, owner: str, repo: str, max_per_month: int = 50, progress_callback=None, use_graphql: bool = False) -> Dict:
+    def crawl_all_months(self, owner: str, repo: str, max_per_month: int = 50, progress_callback=None, use_graphql: bool = False, existing_months: List[str] = None, existing_data: Dict = None) -> Dict:
         """
         爬取所有月份的数据（使用GraphQL API和并发请求优化）
+        支持断点续传：只爬取缺失的月份
+        
+        Args:
+            owner: 仓库所有者
+            repo: 仓库名称
+            max_per_month: 每月最多爬取的数量
+            progress_callback: 进度回调函数
+            use_graphql: 是否使用GraphQL API
+            existing_months: 已存在的月份列表（用于断点续传）
+            existing_data: 已存在的数据（用于合并）
+        
         返回格式：
         {
           'monthly_data': {
@@ -859,6 +870,8 @@ class MonthlyCrawler:
         print(f"开始按月爬取仓库: {owner}/{repo}")
         if use_graphql:
             print(f"使用 GraphQL API + 并发请求（优化模式）")
+        if existing_months:
+            print(f"断点续传模式：已存在 {len(existing_months)} 个月的数据")
         print(f"{'='*60}\n")
         
         # 获取仓库信息
@@ -867,10 +880,43 @@ class MonthlyCrawler:
         repo_info = repo_response.json() if repo_response else {}
         
         # 生成月份列表
-        months = self.generate_month_list(owner, repo)
-        print(f"  需要爬取的月份数: {len(months)}")
+        all_months = self.generate_month_list(owner, repo)
         
+        # 如果提供了已存在的月份，只爬取缺失的月份
+        if existing_months:
+            months_to_crawl = [m for m in all_months if m not in existing_months]
+            print(f"  总月份数: {len(all_months)}")
+            print(f"  已存在: {len(existing_months)} 个月")
+            print(f"  需要爬取: {len(months_to_crawl)} 个月")
+            months = months_to_crawl
+        else:
+            months = all_months
+            print(f"  需要爬取的月份数: {len(months)}")
+        
+        # 初始化 monthly_data，如果提供了已有数据则合并
         monthly_data = {}
+        if existing_data and isinstance(existing_data, dict):
+            if 'monthly_data' in existing_data:
+                monthly_data = existing_data['monthly_data'].copy()
+            elif isinstance(existing_data, dict):
+                # 如果 existing_data 本身就是 monthly_data
+                monthly_data = existing_data.copy()
+        
+        # 如果所有月份都已存在，直接返回已有数据
+        if not months:
+            if monthly_data:
+                print(f"  ✓ 所有月份数据已存在，跳过爬取")
+                return {
+                    'repo_info': repo_info,
+                    'monthly_data': monthly_data
+                }
+            else:
+                print(f"  ⚠ 没有需要爬取的月份，但也没有已有数据")
+                return {
+                    'repo_info': repo_info,
+                    'monthly_data': {}
+                }
+        
         total_months = len(months)
         
         if use_graphql:
@@ -977,6 +1023,10 @@ class MonthlyCrawler:
         
         print(f"\n{'='*60}")
         print("按月爬取完成！")
+        if existing_months:
+            print(f"  已合并 {len(existing_months)} 个月份的已有数据")
+        print(f"  新爬取 {len([m for m in monthly_data.keys() if m not in (existing_months or [])])} 个月份的数据")
+        print(f"  总计 {len(monthly_data)} 个月份的数据")
         print(f"{'='*60}\n")
         
         return {

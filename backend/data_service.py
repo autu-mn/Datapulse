@@ -110,17 +110,29 @@ class DataService:
         # 2. 中间结构：DataProcessor/data/{owner}_{repo}/{project}_text_data_{timestamp}_processed/
         # 3. 新结构：DataProcessor/data/{owner}_{repo}/monthly_data_{timestamp}/
         
-        for item in os.listdir(DATA_DIR):
-            item_path = os.path.join(DATA_DIR, item)
-            
-            if os.path.isdir(item_path):
+        try:
+            items = os.listdir(DATA_DIR)
+        except Exception as e:
+            print(f"无法读取数据目录 {DATA_DIR}: {e}")
+            return
+        
+        for item in items:
+            try:
+                item_path = os.path.join(DATA_DIR, item)
+                
+                if not os.path.isdir(item_path):
+                    continue
                 # 检查是否是项目文件夹（新结构）
                 # 支持 monthly_data_* 和 *_processed 两种格式
-                data_folders = [
-                    f for f in os.listdir(item_path)
-                    if os.path.isdir(os.path.join(item_path, f)) and 
-                    ('monthly_data_' in f or '_processed' in f)
-                ]
+                try:
+                    data_folders = [
+                        f for f in os.listdir(item_path)
+                        if os.path.isdir(os.path.join(item_path, f)) and 
+                        ('monthly_data_' in f or '_processed' in f)
+                    ]
+                except Exception as e:
+                    print(f"  无法读取项目目录 {item_path}: {e}")
+                    continue
                 
                 if data_folders:
                     # 按时间戳排序，取最新的
@@ -128,15 +140,53 @@ class DataService:
                     latest_folder = data_folders[0]
                     folder_path = os.path.join(item_path, latest_folder)
                     timeseries_file = os.path.join(folder_path, 'timeseries_data.json')
+                    timeseries_for_model_dir = os.path.join(folder_path, 'timeseries_for_model')
+                    
+                    # 检查是否有时序数据文件或目录
+                    has_timeseries_data = False
+                    try:
+                        if os.path.exists(timeseries_file):
+                            has_timeseries_data = True
+                        elif os.path.exists(timeseries_for_model_dir):
+                            try:
+                                json_files = [f for f in os.listdir(timeseries_for_model_dir) if f.endswith('.json')]
+                                if len(json_files) > 0:
+                                    has_timeseries_data = True
+                            except Exception as e:
+                                print(f"  检查 {timeseries_for_model_dir} 失败: {e}")
+                    except Exception as e:
+                        print(f"  检查数据文件失败 {item}: {e}")
+                        continue
                         
-                    if os.path.exists(timeseries_file):
+                    if has_timeseries_data:
                         # 使用项目文件夹名作为repo_key（格式：owner_repo -> owner/repo）
-                        repo_key = item.replace('_', '/')
-                        print(f"自动加载数据: {repo_key} from {latest_folder}")
-                        # 同时保存两种格式的映射
-                        self._load_processed_data(repo_key, folder_path)
-                        # 也保存原始格式（owner_repo）以便查找
-                        self._load_processed_data(item, folder_path)
+                        # 只替换最后一个下划线，以正确处理 owner 或 repo 名称中包含下划线的情况
+                        if '_' in item:
+                            last_underscore_idx = item.rfind('_')
+                            if last_underscore_idx > 0 and last_underscore_idx < len(item) - 1:
+                                repo_key = f"{item[:last_underscore_idx]}/{item[last_underscore_idx + 1:]}"
+                            else:
+                                # 如果格式不对，使用原始名称
+                                repo_key = item
+                        else:
+                            repo_key = item
+                        
+                        print(f"自动加载数据: {repo_key} (from folder: {item}) from {latest_folder}")
+                        # 加载数据（只使用规范化后的repo_key，避免重复加载）
+                        try:
+                            self._load_processed_data(repo_key, folder_path)
+                            # 如果repo_key和item不同，也保存原始格式的映射（但不重新加载数据）
+                            if repo_key != item:
+                                # 只创建映射，不重新加载数据
+                                if repo_key in self.loaded_timeseries:
+                                    self.loaded_timeseries[item] = self.loaded_timeseries[repo_key]
+                                if repo_key in self.loaded_text:
+                                    self.loaded_text[item] = self.loaded_text[repo_key]
+                        except Exception as e:
+                            print(f"  加载数据失败 {repo_key}: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            continue
                         
                 elif item.endswith('_processed'):
                     # 旧结构：直接在Data目录下的processed文件夹
@@ -145,26 +195,82 @@ class DataService:
                     
                     if os.path.exists(timeseries_file):
                         # 从文件夹名提取仓库名
-                        parts = item.replace('_processed', '').split('_text_data_')
-                        if len(parts) >= 1:
-                            repo_parts = parts[0].split('_')
-                            if len(repo_parts) >= 2:
-                                repo_key = f"{repo_parts[0]}/{repo_parts[1]}"
+                        try:
+                            parts = item.replace('_processed', '').split('_text_data_')
+                            if len(parts) >= 1:
+                                repo_parts = parts[0].split('_')
+                                if len(repo_parts) >= 2:
+                                    repo_key = f"{repo_parts[0]}/{repo_parts[1]}"
+                                else:
+                                    repo_key = parts[0].replace('_', '/')
                             else:
-                                repo_key = parts[0].replace('_', '/')
-                        else:
-                            repo_key = item.replace('_processed', '').replace('_', '/')
-                        
-                        print(f"自动加载数据: {repo_key} from {item}")
-                        self._load_processed_data(repo_key, folder_path)
+                                repo_key = item.replace('_processed', '').replace('_', '/')
+                            
+                            print(f"自动加载数据: {repo_key} from {item}")
+                            try:
+                                self._load_processed_data(repo_key, folder_path)
+                            except Exception as e:
+                                print(f"  加载旧格式数据失败 {item}: {e}")
+                                import traceback
+                                traceback.print_exc()
+                                continue
+                        except Exception as e:
+                            print(f"  解析旧格式数据失败 {item}: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            continue
+            except Exception as e:
+                print(f"处理项目 {item} 时出错: {e}")
+                import traceback
+                traceback.print_exc()
+                continue
     
     def _load_processed_data(self, repo_key, folder_path):
         """加载处理后的数据文件夹"""
+        # 检查是否已经加载过这个 repo_key 的数据
+        # 如果已经存在数据，验证是否来自同一个文件夹
+        if repo_key in self.loaded_timeseries:
+            # 检查文件夹路径是否匹配（通过检查metadata.json中的repo_info来验证）
+            metadata_file = os.path.join(folder_path, 'metadata.json')
+            project_summary_file = os.path.join(folder_path, 'project_summary.json')
+            
+            # 尝试从metadata或project_summary中获取实际的repo信息
+            actual_repo_info = None
+            if os.path.exists(metadata_file):
+                try:
+                    with open(metadata_file, 'r', encoding='utf-8') as f:
+                        metadata = json.load(f)
+                        repo_info = metadata.get('repo_info', {})
+                        if repo_info:
+                            full_name = repo_info.get('full_name', '')
+                            if full_name:
+                                # 验证full_name是否匹配repo_key
+                                expected_key_variants = [
+                                    repo_key,
+                                    repo_key.replace('_', '/') if '_' in repo_key else repo_key.replace('/', '_'),
+                                    full_name,
+                                    full_name.replace('/', '_')
+                                ]
+                                # 如果repo_key与full_name不匹配，说明可能是错误的数据
+                                if repo_key not in expected_key_variants and full_name not in expected_key_variants:
+                                    print(f"  [ERROR] 数据不匹配！repo_key={repo_key}, 但文件夹中的数据是 {full_name}")
+                                    print(f"  跳过加载，避免数据混乱。请检查文件夹命名是否正确。")
+                                    return
+                except Exception as e:
+                    print(f"  验证数据匹配性失败: {e}")
+            
+            # 如果数据已存在且验证通过，跳过加载
+            timeseries_file = os.path.join(folder_path, 'timeseries_data.json')
+            if os.path.exists(timeseries_file):
+                print(f"  [INFO] {repo_key} 的数据已存在，跳过加载（避免重复）")
+                return
+        
         timeseries_file = os.path.join(folder_path, 'timeseries_data.json')
+        timeseries_for_model_dir = os.path.join(folder_path, 'timeseries_for_model')
         text_file = os.path.join(folder_path, 'text_data_structured.json')
         issue_classification_file = os.path.join(folder_path, 'issue_classification.json')
         
-        # 加载时序数据
+        # 加载时序数据（优先从 timeseries_data.json，如果没有则从 timeseries_for_model 目录）
         if os.path.exists(timeseries_file):
             try:
                 with open(timeseries_file, 'r', encoding='utf-8') as f:
@@ -185,10 +291,11 @@ class DataService:
                                             timeseries_dict[metric_key] = {'raw': {}}
                                         timeseries_dict[metric_key]['raw'][month] = value
                             self.loaded_timeseries[repo_key] = timeseries_dict
-                            print(f"  [OK] 已转换时序数据格式: {len(timeseries_dict)} 个指标")
+                            print(f"  [OK] 已加载 {repo_key} 的时序数据: {len(timeseries_dict)} 个指标")
                         else:
                             # 已经是按指标组织的格式，直接使用
                             self.loaded_timeseries[repo_key] = data
+                            print(f"  [OK] 已加载 {repo_key} 的时序数据: {len(data)} 个指标")
                     elif isinstance(data, list):
                         timeseries_dict = {}
                         for item in data:
@@ -202,6 +309,113 @@ class DataService:
                 import traceback
                 traceback.print_exc()
                 print(f"加载时序数据失败 {repo_key}: {e}")
+        elif os.path.exists(timeseries_for_model_dir):
+            # 从 timeseries_for_model 目录加载数据
+            try:
+                # 优先尝试加载 all_months.json（汇总文件）
+                all_months_file = os.path.join(timeseries_for_model_dir, 'all_months.json')
+                if os.path.exists(all_months_file):
+                    with open(all_months_file, 'r', encoding='utf-8') as f:
+                        monthly_data = json.load(f)
+                    
+                    # 转换为按指标组织的格式
+                    timeseries_dict = {}
+                    for month, data in monthly_data.items():
+                        if isinstance(data, dict):
+                            # 数据格式可能是两种：
+                            # 1. 新格式：{"opendigger_metrics": {"OpenRank": 10.5, "活跃度": 20.3, ...}}
+                            # 2. 旧格式：{"opendigger_OpenRank": 4.76, ...}
+                            opendigger_metrics = data.get('opendigger_metrics', {})
+                            if opendigger_metrics and isinstance(opendigger_metrics, dict):
+                                # 新格式：从 opendigger_metrics 对象中提取指标
+                                for metric_name, value in opendigger_metrics.items():
+                                    metric_key = f"opendigger_{metric_name}"
+                                    if metric_key not in timeseries_dict:
+                                        timeseries_dict[metric_key] = {'raw': {}}
+                                    timeseries_dict[metric_key]['raw'][month] = value
+                            else:
+                                # 旧格式：直接查找以 opendigger_ 开头的键
+                                for metric_key, value in data.items():
+                                    if metric_key.startswith('opendigger_'):
+                                        if metric_key not in timeseries_dict:
+                                            timeseries_dict[metric_key] = {'raw': {}}
+                                        timeseries_dict[metric_key]['raw'][month] = value
+                    
+                    if timeseries_dict:
+                        self.loaded_timeseries[repo_key] = timeseries_dict
+                        # 统计每个指标的数据点数量
+                        metric_info = []
+                        for metric_key, metric_data in list(timeseries_dict.items())[:5]:  # 只显示前5个
+                            data_points = len(metric_data.get('raw', {}))
+                            metric_info.append(f"{metric_key}({data_points}个月)")
+                        print(f"  [OK] 已从 timeseries_for_model 加载 {repo_key} 的时序数据: {len(timeseries_dict)} 个指标")
+                        if metric_info:
+                            print(f"    示例指标: {', '.join(metric_info)}")
+                else:
+                    # 如果没有 all_months.json，从各个月份的 JSON 文件加载
+                    try:
+                        month_files = [f for f in os.listdir(timeseries_for_model_dir) if f.endswith('.json') and f != 'all_months.json' and f != 'project_summary.json']
+                    except Exception as e:
+                        print(f"  无法读取 timeseries_for_model 目录 {timeseries_for_model_dir}: {e}")
+                        month_files = []
+                    
+                    if month_files:
+                        timeseries_dict = {}
+                        for month_file in sorted(month_files):
+                            month = month_file.replace('.json', '')
+                            month_path = os.path.join(timeseries_for_model_dir, month_file)
+                            try:
+                                with open(month_path, 'r', encoding='utf-8') as f:
+                                    data = json.load(f)
+                                    if isinstance(data, dict):
+                                        # 数据格式可能是两种：
+                                        # 1. 新格式：{"opendigger_metrics": {"OpenRank": 10.5, "活跃度": 20.3, ...}}
+                                        # 2. 旧格式：{"opendigger_OpenRank": 4.76, ...}
+                                        opendigger_metrics = data.get('opendigger_metrics', {})
+                                        if opendigger_metrics and isinstance(opendigger_metrics, dict):
+                                            # 新格式：从 opendigger_metrics 对象中提取指标
+                                            for metric_name, value in opendigger_metrics.items():
+                                                metric_key = f"opendigger_{metric_name}"
+                                                if metric_key not in timeseries_dict:
+                                                    timeseries_dict[metric_key] = {'raw': {}}
+                                                timeseries_dict[metric_key]['raw'][month] = value
+                                        else:
+                                            # 旧格式：直接查找以 opendigger_ 开头的键
+                                            for metric_key, value in data.items():
+                                                if metric_key.startswith('opendigger_'):
+                                                    if metric_key not in timeseries_dict:
+                                                        timeseries_dict[metric_key] = {'raw': {}}
+                                                    timeseries_dict[metric_key]['raw'][month] = value
+                            except Exception as e:
+                                print(f"  加载月份文件 {month_file} 失败: {e}")
+                        
+                        if timeseries_dict:
+                            self.loaded_timeseries[repo_key] = timeseries_dict
+                            # 统计每个指标的数据点数量
+                            metric_info = []
+                            for metric_key, metric_data in list(timeseries_dict.items())[:5]:  # 只显示前5个
+                                data_points = len(metric_data.get('raw', {}))
+                                metric_info.append(f"{metric_key}({data_points}个月)")
+                            print(f"  [OK] 已从 timeseries_for_model 加载 {repo_key} 的时序数据: {len(timeseries_dict)} 个指标，{len(month_files)} 个月")
+                            if metric_info:
+                                print(f"    示例指标: {', '.join(metric_info)}")
+                        else:
+                            print(f"  [WARN] 从 {len(month_files)} 个月份文件中未找到任何指标数据")
+                            # 尝试打印第一个文件的内容结构以便调试
+                            if month_files:
+                                try:
+                                    first_file = os.path.join(timeseries_for_model_dir, month_files[0])
+                                    with open(first_file, 'r', encoding='utf-8') as f:
+                                        sample_data = json.load(f)
+                                        print(f"    示例文件结构: {list(sample_data.keys())[:10]}")
+                                        if 'opendigger_metrics' in sample_data:
+                                            print(f"    opendigger_metrics 中的指标: {list(sample_data['opendigger_metrics'].keys())[:10]}")
+                                except Exception as e:
+                                    print(f"    无法读取示例文件: {e}")
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                print(f"从 timeseries_for_model 加载时序数据失败 {repo_key}: {e}")
         
         # 加载文本数据
         if os.path.exists(text_file):
@@ -263,15 +477,29 @@ class DataService:
             try:
                 with open(issue_classification_file, 'r', encoding='utf-8') as f:
                     self.loaded_issue_classification[repo_key] = json.load(f)
+                    by_month = self.loaded_issue_classification[repo_key].get('by_month', {})
+                    print(f"  [OK] 已加载Issue分类数据: {len(by_month)} 个月份")
             except Exception as e:
                 print(f"加载Issue分类数据失败 {repo_key}: {e}")
+        else:
+            # 如果没有 issue_classification.json，尝试从月度数据生成
+            print(f"  [INFO] Issue分类文件不存在，尝试从月度数据生成...")
+            issue_classification = self._generate_issue_classification_from_monthly_data(repo_key, folder_path)
+            if issue_classification:
+                self.loaded_issue_classification[repo_key] = issue_classification
+                by_month = issue_classification.get('by_month', {})
+                print(f"  [OK] 已从月度数据生成Issue分类: {len(by_month)} 个月份")
         
-        # 加载项目 AI 摘要
-        project_summary_file = os.path.join(folder_path, 'project_summary.json')
+        # 加载项目 AI 摘要（可能在 timeseries_for_model 目录下或根目录）
+        project_summary_file = os.path.join(folder_path, 'timeseries_for_model', 'project_summary.json')
+        if not os.path.exists(project_summary_file):
+            project_summary_file = os.path.join(folder_path, 'project_summary.json')
+        
         if os.path.exists(project_summary_file):
             try:
                 with open(project_summary_file, 'r', encoding='utf-8') as f:
                     self.loaded_project_summary[repo_key] = json.load(f)
+                    print(f"  [OK] 已加载项目 AI 摘要: {repo_key}")
             except Exception as e:
                 print(f"加载项目摘要失败 {repo_key}: {e}")
     
@@ -369,21 +597,55 @@ class DataService:
     
     def _normalize_repo_key(self, repo_key):
         """标准化仓库key格式，支持两种格式的查找"""
+        if not repo_key:
+            return repo_key
+        
         # 先尝试原始格式
         if repo_key in self.loaded_timeseries or repo_key in self.loaded_text:
             return repo_key
         
-        # 尝试转换格式
+        # 尝试转换格式（只替换最后一个下划线或第一个斜杠，以正确处理包含下划线的名称）
         if '/' in repo_key:
-            alt_key = repo_key.replace('/', '_')
-            if alt_key in self.loaded_timeseries or alt_key in self.loaded_text:
-                return alt_key
+            # owner/repo -> owner_repo（只替换第一个斜杠）
+            parts = repo_key.split('/', 1)
+            if len(parts) == 2:
+                alt_key = f"{parts[0]}_{parts[1]}"
+                if alt_key in self.loaded_timeseries or alt_key in self.loaded_text:
+                    # 验证数据是否真的匹配（通过检查数据特征）
+                    if self._verify_repo_key_match(repo_key, alt_key):
+                        return alt_key
         elif '_' in repo_key:
-            alt_key = repo_key.replace('_', '/')
-            if alt_key in self.loaded_timeseries or alt_key in self.loaded_text:
-                return alt_key
+            # owner_repo -> owner/repo（只替换最后一个下划线）
+            last_underscore_idx = repo_key.rfind('_')
+            if last_underscore_idx > 0 and last_underscore_idx < len(repo_key) - 1:
+                alt_key = f"{repo_key[:last_underscore_idx]}/{repo_key[last_underscore_idx + 1:]}"
+                if alt_key in self.loaded_timeseries or alt_key in self.loaded_text:
+                    # 验证数据是否真的匹配
+                    if self._verify_repo_key_match(repo_key, alt_key):
+                        return alt_key
         
         return repo_key  # 如果都不存在，返回原始key
+    
+    def _verify_repo_key_match(self, key1, key2):
+        """验证两个repo_key是否指向同一个仓库的数据"""
+        # 如果两个key都有数据，检查数据特征是否匹配
+        data1 = self.loaded_timeseries.get(key1) or self.loaded_text.get(key1)
+        data2 = self.loaded_timeseries.get(key2) or self.loaded_text.get(key2)
+        
+        if not data1 or not data2:
+            return True  # 如果只有一个有数据，允许匹配
+        
+        # 检查时序数据的指标数量是否相同（简单验证）
+        if key1 in self.loaded_timeseries and key2 in self.loaded_timeseries:
+            metrics1 = set(self.loaded_timeseries[key1].keys())
+            metrics2 = set(self.loaded_timeseries[key2].keys())
+            if len(metrics1) > 0 and len(metrics2) > 0:
+                # 如果指标数量差异很大，可能不是同一个项目
+                if abs(len(metrics1) - len(metrics2)) > 5:
+                    print(f"  [WARN] 数据不匹配：{key1} 有 {len(metrics1)} 个指标，{key2} 有 {len(metrics2)} 个指标")
+                    return False
+        
+        return True
     
     def get_all_metrics_historical_data(self, repo_key):
         """
@@ -708,6 +970,110 @@ class DataService:
             filtered = [(w, c) for w, c in word_counts.most_common(30) if w not in stopwords]
             return [{'word': word, 'weight': count} for word, count in filtered]
     
+    def _generate_issue_classification_from_monthly_data(self, repo_key, folder_path):
+        """
+        从月度数据文件中提取 Issue 数据并生成分类
+        
+        Args:
+            repo_key: 仓库键名
+            folder_path: 数据文件夹路径
+            
+        Returns:
+            Issue 分类数据字典，格式与 issue_classification.json 相同
+        """
+        try:
+            timeseries_for_model_dir = os.path.join(folder_path, 'timeseries_for_model')
+            if not os.path.exists(timeseries_for_model_dir):
+                return None
+            
+            # 查找所有月份文件
+            month_files = [f for f in os.listdir(timeseries_for_model_dir) 
+                          if f.endswith('.json') and f != 'all_months.json' and f != 'project_summary.json']
+            
+            if not month_files:
+                return None
+            
+            by_month = {}
+            labels = {
+                'feature': '功能需求',
+                'bug': 'Bug修复',
+                'question': '社区咨询',
+                'other': '其他'
+            }
+            
+            for month_file in sorted(month_files):
+                month = month_file.replace('.json', '')
+                month_path = os.path.join(timeseries_for_model_dir, month_file)
+                
+                try:
+                    with open(month_path, 'r', encoding='utf-8') as f:
+                        month_data = json.load(f)
+                    
+                    # 从月度数据中提取 Issue 文本
+                    issues_text = ''
+                    text_data = month_data.get('text_data', {})
+                    if isinstance(text_data, dict):
+                        breakdown = text_data.get('breakdown', {})
+                        if isinstance(breakdown, dict):
+                            issues_text = breakdown.get('issues_text', '')
+                    
+                    if not issues_text:
+                        continue
+                    
+                    # 分类统计
+                    categories = {'功能需求': 0, 'Bug修复': 0, '社区咨询': 0, '其他': 0}
+                    issues_lower = issues_text.lower()
+                    
+                    # 使用关键词分类
+                    for category, keywords in self.category_keywords.items():
+                        for keyword in keywords:
+                            if keyword.lower() in issues_lower:
+                                # 计算该关键词出现的次数（简单计数）
+                                count = issues_lower.count(keyword.lower())
+                                categories[category] += count
+                    
+                    # 如果没有匹配到任何分类，尝试从 Issue 标题中提取
+                    if sum(categories.values()) == 0:
+                        # 从文本中提取 Issue 标题（格式：Issue #1234: Title）
+                        issue_titles = re.findall(r'Issue #\d+:\s*([^\n]+)', issues_text, re.IGNORECASE)
+                        for title in issue_titles:
+                            title_lower = title.lower()
+                            if any(kw in title_lower for kw in ['bug', 'error', 'fix', 'crash', 'broken', '错误', '修复', '问题', '崩溃']):
+                                categories['Bug修复'] += 1
+                            elif any(kw in title_lower for kw in ['feature', 'request', 'enhancement', 'add', '功能', '需求', '新增']):
+                                categories['功能需求'] += 1
+                            elif any(kw in title_lower for kw in ['question', 'help', 'how', 'why', '问题', '帮助', '如何']):
+                                categories['社区咨询'] += 1
+                            else:
+                                categories['其他'] += 1
+                    
+                    total = sum(categories.values())
+                    if total == 0:
+                        total = 1  # 避免除零
+                    
+                    by_month[month] = {
+                        'total': total,
+                        'feature': categories['功能需求'],
+                        'bug': categories['Bug修复'],
+                        'question': categories['社区咨询'],
+                        'other': categories['其他']
+                    }
+                except Exception as e:
+                    print(f"  处理月份文件 {month_file} 失败: {e}")
+                    continue
+            
+            if by_month:
+                return {
+                    'by_month': by_month,
+                    'labels': labels
+                }
+        except Exception as e:
+            print(f"  从月度数据生成Issue分类时出错: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        return None
+    
     def analyze_waves(self, repo_key):
         """
         波动归因分析
@@ -947,7 +1313,8 @@ class DataService:
             summary['projectSummary'] = {
                 'aiSummary': summary_data.get('ai_summary', ''),
                 'issueStats': summary_data.get('issue_stats', {}),
-                'dataRange': summary_data.get('data_range', {})
+                'dataRange': summary_data.get('date_range', summary_data.get('data_range', {})),
+                'total_months': summary_data.get('total_months', 0)
             }
         else:
             summary['projectSummary'] = None
@@ -1044,7 +1411,8 @@ class DataService:
             result['projectSummary'] = {
                 'aiSummary': summary_data.get('ai_summary', ''),
                 'issueStats': summary_data.get('issue_stats', {}),
-                'dataRange': summary_data.get('data_range', {})
+                'dataRange': summary_data.get('date_range', summary_data.get('data_range', {})),
+                'total_months': summary_data.get('total_months', 0)
             }
         else:
             result['projectSummary'] = None
@@ -1141,7 +1509,8 @@ class DataService:
             result['projectSummary'] = {
                 'aiSummary': summary_data.get('ai_summary', ''),
                 'issueStats': summary_data.get('issue_stats', {}),
-                'dataRange': summary_data.get('data_range', {})
+                'dataRange': summary_data.get('date_range', summary_data.get('data_range', {})),
+                'total_months': summary_data.get('total_months', 0)
             }
         else:
             result['projectSummary'] = None

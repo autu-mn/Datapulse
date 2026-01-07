@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion'
-import { Database, Github, Sparkles, MessageSquare } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Database, Github, Book } from 'lucide-react'
 
 interface HeaderProps {
   repoName?: string
   onBackToHome?: () => void
+  onOpenDocs?: () => void
 }
 
-export default function Header({ repoName, onBackToHome }: HeaderProps) {
+export default function Header({ repoName, onBackToHome, onOpenDocs }: HeaderProps) {
   return (
     <header className="relative border-b border-cyber-border bg-cyber-surface/80 backdrop-blur-xl">
       <div className="container mx-auto px-4 py-4">
@@ -29,7 +29,7 @@ export default function Header({ repoName, onBackToHome }: HeaderProps) {
             </div>
             <div>
               <h1 className="text-2xl font-display font-bold gradient-text group-hover:opacity-80 transition-opacity">
-                DataPulse
+                OpenVista
               </h1>
               <p className="text-xs text-cyber-muted font-chinese">
                 GitHub 仓库生态画像分析平台
@@ -37,29 +37,31 @@ export default function Header({ repoName, onBackToHome }: HeaderProps) {
             </div>
           </motion.div>
 
-          {/* 右侧：功能按钮 */}
+          {/* 右侧：仓库信息 + 文档按钮 */}
           <motion.div
             className="flex items-center gap-4"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
           >
-            <Link
-              to="/ai"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-cyber-card border border-cyber-border
-                       hover:border-cyber-primary/50 hover:bg-cyber-primary/10 transition-all
-                       text-cyber-muted hover:text-cyber-primary"
-              title="AI助手"
-            >
-              <MessageSquare className="w-5 h-5" />
-              <span className="font-chinese text-sm hidden sm:inline">AI助手</span>
-            </Link>
-            
             {repoName && (
-              <div className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-lg bg-cyber-card border border-cyber-border">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-cyber-card border border-cyber-border">
                 <Github className="w-4 h-4 text-cyber-muted" />
                 <span className="text-cyber-primary font-mono text-sm">{repoName.replace('_', '/')}</span>
               </div>
+            )}
+            
+            {/* 文档按钮 */}
+            {onOpenDocs && (
+              <button
+                onClick={onOpenDocs}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-cyber-card border border-cyber-border
+                         text-cyber-muted hover:text-cyber-primary hover:border-cyber-primary/50 transition-all"
+                title="使用文档"
+              >
+                <Book className="w-4 h-4" />
+                <span className="text-sm font-chinese">文档</span>
+              </button>
             )}
           </motion.div>
         </div>

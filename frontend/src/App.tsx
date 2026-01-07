@@ -1,32 +1,134 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Activity, TrendingUp, GitBranch, Users, AlertCircle, FileText, BarChart3, RefreshCw, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
+import { Activity, TrendingUp, GitBranch, Users, AlertCircle, FileText, BarChart3, RefreshCw, Sparkles, ChevronDown, ChevronUp, Loader2, CheckCircle2, Zap, Award } from 'lucide-react'
 import GroupedTimeSeriesChart from './components/GroupedTimeSeriesChart'
 import IssueAnalysis from './components/IssueAnalysis'
+import IssueAIAnalysis from './components/IssueAIAnalysis'
+import ForecastChart from './components/ForecastChart'
 import Header from './components/Header'
 import StatsCard from './components/StatsCard'
 import ProjectSearch from './components/ProjectSearch'
 import HomePage from './components/HomePage'
 import RepoHeader from './components/RepoHeader'
+import CHAOSSEvaluation from './components/CHAOSSEvaluation'
+import ChatAssistant from './components/ChatAssistant'
+import DocumentationPage from './components/DocumentationPage'
 import type { DemoData, GroupedTimeSeriesData, IssueData } from './types'
 
+// 爬取进度类型
+interface CrawlProgress {
+  step: number
+  stepName: string
+  message: string
+  progress: number
+}
+
+// 渲染内联 Markdown（加粗、斜体等）
+function renderMarkdownInline(text: string): React.ReactNode {
+  // 处理 **加粗**
+  const parts = text.split(/(\*\*[^*]+\*\*)/)
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <span key={i} className="text-cyber-primary font-medium bg-cyber-primary/10 px-1 rounded">
+          {part.slice(2, -2)}
+        </span>
+      )
+    }
+    return part
+  })
+}
+
 function App() {
+  // 初始化时从 localStorage 恢复项目信息
+  const [currentProject, setCurrentProject] = useState<string>(() => {
+    const saved = localStorage.getItem('currentProject')
+    return saved || ''
+  })
+  const [showHomePage, setShowHomePage] = useState<boolean>(() => {
+    // 如果有保存的项目，初始状态就不显示首页
+    return !localStorage.getItem('currentProject')
+  })
+  
   const [data, setData] = useState<DemoData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'timeseries' | 'issues'>('timeseries')
-  const [currentProject, setCurrentProject] = useState<string>('')
-  const [showHomePage, setShowHomePage] = useState(true)
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(() => {
+    const saved = localStorage.getItem('selectedMonth')
+    return saved || null
+  })
+  const [activeTab, setActiveTab] = useState<'timeseries' | 'forecast' | 'issues' | 'chaoss' | 'analysis'>(() => {
+    const saved = localStorage.getItem('activeTab') as 'timeseries' | 'forecast' | 'issues' | 'chaoss' | 'analysis' | null
+    return saved || 'timeseries'
+  })
   const [repoInfo, setRepoInfo] = useState<any>(null)
   const [summaryExpanded, setSummaryExpanded] = useState(false)
+  const [needsTextCrawl, setNeedsTextCrawl] = useState(false)
+  const [crawlingText, setCrawlingText] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
+  
+  // 爬取进度状态（用于在主界面显示）
+  const [crawlProgress, setCrawlProgress] = useState<CrawlProgress | null>(null)
+  const [isCrawling, setIsCrawling] = useState(false)
+  
+  // 文档页面状态
+  const [showDocs, setShowDocs] = useState(false)
+
+  // 页面加载时，如果有保存的项目，恢复并加载数据
+  useEffect(() => {
+    const savedProject = localStorage.getItem('currentProject')
+    if (savedProject && !isInitialized) {
+      console.log('[页面恢复] 从 localStorage 恢复项目:', savedProject)
+      // 恢复标签页和月份
+      const savedTab = localStorage.getItem('activeTab') as 'timeseries' | 'forecast' | 'issues' | 'analysis' | null
+      const savedMonth = localStorage.getItem('selectedMonth')
+      if (savedTab) {
+        setActiveTab(savedTab)
+      }
+      if (savedMonth) {
+        setSelectedMonth(savedMonth)
+      }
+      setCurrentProject(savedProject)
+      setShowHomePage(false)
+      setIsInitialized(true)
+      // 延迟加载数据，确保组件已完全初始化
+      setTimeout(() => {
+        fetchDataForProject(savedProject)
+      }, 100)
+    } else if (!savedProject) {
+      setIsInitialized(true)
+    }
+  }, [isInitialized])
+
+  // 保存当前项目到 localStorage
+  useEffect(() => {
+    if (currentProject) {
+      localStorage.setItem('currentProject', currentProject)
+    } else {
+      localStorage.removeItem('currentProject')
+    }
+  }, [currentProject])
+
+  // 保存当前标签页到 localStorage
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab)
+  }, [activeTab])
+
+  // 保存选中的月份到 localStorage
+  useEffect(() => {
+    if (selectedMonth) {
+      localStorage.setItem('selectedMonth', selectedMonth)
+    } else {
+      localStorage.removeItem('selectedMonth')
+    }
+  }, [selectedMonth])
 
   useEffect(() => {
-    // 如果已经有项目且不在首页，加载数据
-    if (currentProject && !showHomePage) {
+    // 如果已经有项目且不在首页，加载数据（用于手动切换项目时）
+    if (currentProject && !showHomePage && isInitialized) {
       fetchData()
     }
-  }, [currentProject, showHomePage])
+  }, [currentProject, showHomePage, isInitialized])
 
   const handleProjectSelect = (projectName: string) => {
     setCurrentProject(projectName)
@@ -117,6 +219,11 @@ function App() {
       const summaryResponse = await fetch(`/api/repo/${encodeURIComponent(repoKey)}/summary`)
       const summaryData = await summaryResponse.json()
       
+      // 调试日志
+      console.log('[fetchData] summaryData:', summaryData)
+      console.log('[fetchData] projectSummary:', summaryData.projectSummary)
+      console.log('[fetchData] aiSummary exists:', !!summaryData.projectSummary?.aiSummary)
+      
       setData({
         repoKey: projectName,
         groupedTimeseries: timeseriesData.error ? null : timeseriesData,
@@ -129,6 +236,53 @@ function App() {
       console.error('Error fetching data:', err)
     } finally {
       setLoading(false)
+    }
+  }
+  
+  const handleCrawlText = async () => {
+    if (!currentProject || crawlingText) return
+    
+    // 先检查是否正在爬取
+    try {
+      const statusResp = await fetch(`/api/check_crawling_status?project_name=${encodeURIComponent(currentProject)}`)
+      const statusData = await statusResp.json()
+      
+      if (statusData.is_crawling) {
+        console.log('[补爬] 项目正在爬取中，跳过')
+        setCrawlingText(true)
+        return
+      }
+    } catch (e) {
+      console.warn('检查爬取状态失败:', e)
+    }
+    
+    setCrawlingText(true)
+    try {
+      const response = await fetch(`/api/project/${encodeURIComponent(currentProject)}/crawl_text`, {
+        method: 'POST'
+      })
+      
+      if (response.status === 409) {
+        // 409 Conflict - 正在爬取中
+        const result = await response.json()
+        console.log('[补爬]', result.error || '项目正在爬取中')
+        setCrawlingText(true)
+        return
+      }
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        setNeedsTextCrawl(false)
+        // 重新加载数据
+        await fetchDataForProject(currentProject)
+      } else {
+        console.error('补爬失败:', result.message || result.error)
+      }
+    } catch (err) {
+      console.error('补爬请求失败:', err)
+    } finally {
+      setCrawlingText(false)
     }
   }
 
@@ -184,9 +338,20 @@ function App() {
 
   const stats = getStats()
 
-  // 显示首页
-  if (showHomePage) {
-    return <HomePage onProjectReady={handleProjectReady} />
+  // 显示首页（只有在没有项目且已初始化时才显示）
+  if (showHomePage && isInitialized) {
+    return <HomePage 
+      onProjectReady={handleProjectReady} 
+      onProgressUpdate={(progress) => {
+        setCrawlProgress(progress)
+        setIsCrawling(progress.progress < 100)
+      }}
+    />
+  }
+  
+  // 如果正在初始化且有项目，显示加载状态
+  if (!isInitialized && currentProject) {
+    return <LoadingScreen />
   }
 
   if (loading) {
@@ -228,7 +393,92 @@ function App() {
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyber-secondary/5 rounded-full blur-3xl" />
       </div>
 
-      <Header repoName={data?.repoKey} onBackToHome={() => setShowHomePage(true)} />
+      <Header repoName={data?.repoKey} onBackToHome={() => setShowHomePage(true)} onOpenDocs={() => setShowDocs(true)} />
+      
+      {/* 底部进度条 - 显示后台爬取进度 */}
+      <AnimatePresence>
+        {isCrawling && crawlProgress && crawlProgress.progress < 100 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-0 left-0 right-0 z-50"
+          >
+            <div className="bg-cyber-card/95 backdrop-blur-xl border-t border-cyber-primary/30">
+              {/* 进度条 */}
+              <div className="h-1 bg-cyber-bg">
+                <motion.div 
+                  className="h-full bg-gradient-to-r from-cyber-primary to-cyber-secondary"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${crawlProgress.progress}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+              
+              {/* 步骤信息 */}
+              <div className="container mx-auto px-4 py-2 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-4 h-4 text-cyber-primary animate-spin" />
+                  <span className="text-sm text-cyber-text font-chinese">{crawlProgress.message}</span>
+                </div>
+                
+                {/* 步骤标签 - 与后端实际进度一致 */}
+                <div className="flex items-center gap-2 text-xs">
+                  {[
+                    { name: '指标数据', startAt: 5, endAt: 20 },
+                    { name: '描述文本', startAt: 20, endAt: 50 },
+                    { name: 'Issue/PR', startAt: 50, endAt: 80 },
+                    { name: '数据对齐', startAt: 80, endAt: 95 },
+                    { name: '完成', startAt: 95, endAt: 100 },
+                  ].map((step, i) => {
+                    const isComplete = crawlProgress.progress >= step.endAt
+                    const isActive = crawlProgress.progress >= step.startAt && crawlProgress.progress < step.endAt
+                    return (
+                      <span 
+                        key={i}
+                        className={`px-2 py-0.5 rounded-full transition-colors ${
+                          isComplete 
+                            ? 'bg-cyber-success/20 text-cyber-success' 
+                            : isActive
+                            ? 'bg-cyber-primary/20 text-cyber-primary animate-pulse'
+                            : 'bg-cyber-border/30 text-cyber-muted/50'
+                        }`}
+                      >
+                        {isComplete ? '✓' : isActive ? '⋯' : i + 1}. {step.name}
+                      </span>
+                    )
+                  })}
+                  <span className="ml-2 font-mono text-cyber-primary">{crawlProgress.progress}%</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 爬取完成提示 - 更简洁 */}
+      <AnimatePresence>
+        {crawlProgress && crawlProgress.progress >= 100 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-4 right-4 z-50"
+            onAnimationComplete={() => {
+              setTimeout(() => {
+                setIsCrawling(false)
+                setCrawlProgress(null)
+                fetchData()
+              }, 2000)
+            }}
+          >
+            <div className="bg-cyber-success/20 backdrop-blur-xl rounded-lg border border-cyber-success/50 px-4 py-2 shadow-lg flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-cyber-success" />
+              <span className="text-sm text-cyber-success font-chinese">数据爬取完成</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <main className="relative z-10 container mx-auto px-4 py-8">
         {/* 项目搜索区域 - 更自然的设计 */}
@@ -274,47 +524,62 @@ function App() {
           </motion.div>
         )}
 
-        {/* 统计卡片 */}
+        {/* 统计卡片 - 当月数据 */}
         <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+          className="mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <StatsCard
-            icon={<Activity className="w-6 h-6" />}
-            title="Star 数"
-            value={Math.round(stats.stars)}
-            change=""
-            color="primary"
-          />
-          <StatsCard
-            icon={<GitBranch className="w-6 h-6" />}
-            title="代码提交"
-            value={Math.round(stats.commits)}
-            change=""
-            color="success"
-          />
-          <StatsCard
-            icon={<TrendingUp className="w-6 h-6" />}
-            title="PR 接受"
-            value={Math.round(stats.prs)}
-            change=""
-            color="secondary"
-          />
-          <StatsCard
-            icon={<Users className="w-6 h-6" />}
-            title="参与者"
-            value={Math.round(stats.contributors)}
-            change=""
-            color="accent"
-          />
+          {/* 当月数据提示 */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-cyber-primary rounded-full animate-pulse" />
+              <span className="text-sm text-cyber-muted font-chinese">
+                最新月度数据（{data?.groupedTimeseries?.endMonth || '加载中'}）
+              </span>
+            </div>
+            <span className="text-xs text-cyber-muted/70 font-chinese">
+              以下为当月指标数值，点击图表查看完整趋势
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatsCard
+              icon={<Activity className="w-6 h-6" />}
+              title="Star 数"
+              value={Math.round(stats.stars)}
+              change=""
+              color="primary"
+            />
+            <StatsCard
+              icon={<GitBranch className="w-6 h-6" />}
+              title="代码提交"
+              value={Math.round(stats.commits)}
+              change=""
+              color="success"
+            />
+            <StatsCard
+              icon={<TrendingUp className="w-6 h-6" />}
+              title="PR 接受"
+              value={Math.round(stats.prs)}
+              change=""
+              color="secondary"
+            />
+            <StatsCard
+              icon={<Users className="w-6 h-6" />}
+              title="参与者"
+              value={Math.round(stats.contributors)}
+              change=""
+              color="accent"
+            />
+          </div>
         </motion.div>
 
-        {/* AI 项目摘要 */}
+        {/* AI 项目摘要 - 改进排版 */}
         {data?.projectSummary?.aiSummary && (
           <motion.div
-            className="mb-8 bg-gradient-to-br from-cyber-card/60 to-cyber-card/30 rounded-xl border border-cyber-primary/30 overflow-hidden"
+            className="mb-8 bg-gradient-to-br from-cyber-card/80 to-cyber-card/40 rounded-xl border border-cyber-primary/20 overflow-hidden shadow-lg"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
@@ -324,26 +589,33 @@ function App() {
               className="w-full px-6 py-4 flex items-center justify-between hover:bg-cyber-primary/5 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-cyber-primary/20 rounded-lg">
+                <div className="p-2 bg-gradient-to-br from-cyber-primary/30 to-cyber-secondary/30 rounded-lg">
                   <Sparkles className="w-5 h-5 text-cyber-primary" />
                 </div>
                 <div className="text-left">
-                  <h3 className="text-lg font-display font-bold text-cyber-text">
-                    AI 项目摘要
+                  <h3 className="text-lg font-display font-bold text-cyber-text flex items-center gap-2">
+                    AI 智能摘要
+                    <span className="text-xs font-normal text-cyber-primary bg-cyber-primary/10 px-2 py-0.5 rounded-full">
+                      DeepSeek
+                    </span>
                   </h3>
                   <p className="text-sm text-cyber-muted font-chinese">
-                    基于 {data.projectSummary.dataRange?.months_count || 0} 个月数据生成
-                    {data.projectSummary.dataRange?.start && data.projectSummary.dataRange?.end && (
-                      <span> · {data.projectSummary.dataRange.start} 至 {data.projectSummary.dataRange.end}</span>
+                    {data.projectSummary.dataRange?.start && data.projectSummary.dataRange?.end ? (
+                      <>{data.projectSummary.dataRange.start} 至 {data.projectSummary.dataRange.end} · {data.projectSummary.total_months || data.projectSummary.dataRange?.months_count || 0} 个月数据</>
+                    ) : (
+                      <>基于项目完整数据生成</>
                     )}
                   </p>
                 </div>
               </div>
-              {summaryExpanded ? (
-                <ChevronUp className="w-5 h-5 text-cyber-muted" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-cyber-muted" />
-              )}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-cyber-muted font-chinese">{summaryExpanded ? '收起' : '展开'}</span>
+                {summaryExpanded ? (
+                  <ChevronUp className="w-5 h-5 text-cyber-muted" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-cyber-muted" />
+                )}
+              </div>
             </button>
             
             <AnimatePresence>
@@ -356,41 +628,65 @@ function App() {
                   className="overflow-hidden"
                 >
                   <div className="px-6 pb-6">
-                    <div className="p-4 bg-cyber-bg/50 rounded-lg border border-cyber-border">
-                      <p className="text-cyber-text font-chinese leading-relaxed whitespace-pre-wrap">
-                        {data.projectSummary.aiSummary}
-                      </p>
+                    {/* 摘要内容 - 完整 Markdown 渲染 */}
+                    <div className="prose prose-invert max-w-none">
+                      {data.projectSummary.aiSummary.split('\n').map((line: string, idx: number) => {
+                        // 处理 ### 三级标题
+                        if (line.startsWith('### ')) {
+                          return (
+                            <h5 key={idx} className="text-base font-display font-bold text-cyber-primary mt-3 mb-2 flex items-center gap-2">
+                              <span className="w-1 h-4 bg-cyber-primary rounded-full"></span>
+                              {line.replace('### ', '')}
+                            </h5>
+                          )
+                        }
+                        // 处理 ## 二级标题
+                        if (line.startsWith('## ')) {
+                          return (
+                            <h4 key={idx} className="text-lg font-display font-bold text-cyber-secondary mt-4 mb-2 flex items-center gap-2">
+                              <span className="w-1 h-5 bg-cyber-secondary rounded-full"></span>
+                              {line.replace('## ', '')}
+                            </h4>
+                          )
+                        }
+                        // 处理 # 一级标题
+                        if (line.startsWith('# ') && !line.startsWith('## ') && !line.startsWith('### ')) {
+                          return (
+                            <h3 key={idx} className="text-xl font-display font-bold text-cyber-text mt-4 mb-3">
+                              {line.replace('# ', '')}
+                            </h3>
+                          )
+                        }
+                        // 处理数字列表 (1. 2. 3.)
+                        const numListMatch = line.match(/^(\d+)\.\s+(.+)$/)
+                        if (numListMatch) {
+                          return (
+                            <div key={idx} className="flex items-start gap-2 text-sm text-cyber-text/90 font-chinese ml-2 mb-1">
+                              <span className="text-cyber-secondary font-mono min-w-[1.5rem]">{numListMatch[1]}.</span>
+                              <span>{renderMarkdownInline(numListMatch[2])}</span>
+                            </div>
+                          )
+                        }
+                        // 处理列表项
+                        if (line.startsWith('- ') || line.startsWith('* ')) {
+                          return (
+                            <div key={idx} className="flex items-start gap-2 text-sm text-cyber-text/80 font-chinese ml-2 mb-1">
+                              <span className="text-cyber-primary mt-1">•</span>
+                              <span>{renderMarkdownInline(line.slice(2))}</span>
+                            </div>
+                          )
+                        }
+                        // 普通段落（处理内联 Markdown）
+                        if (line.trim()) {
+                          return (
+                            <p key={idx} className="text-cyber-text/90 font-chinese leading-relaxed mb-2 text-sm">
+                              {renderMarkdownInline(line)}
+                            </p>
+                          )
+                        }
+                        return null
+                      })}
                     </div>
-                    
-                    {/* Issue 统计摘要 */}
-                    {data.projectSummary.issueStats && (
-                      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="p-3 bg-cyber-primary/10 rounded-lg text-center">
-                          <div className="text-2xl font-display font-bold text-cyber-primary">
-                            {data.projectSummary.issueStats.feature || 0}
-                          </div>
-                          <div className="text-xs text-cyber-muted font-chinese">功能需求</div>
-                        </div>
-                        <div className="p-3 bg-cyber-accent/10 rounded-lg text-center">
-                          <div className="text-2xl font-display font-bold text-cyber-accent">
-                            {data.projectSummary.issueStats.bug || 0}
-                          </div>
-                          <div className="text-xs text-cyber-muted font-chinese">Bug 修复</div>
-                        </div>
-                        <div className="p-3 bg-cyber-secondary/10 rounded-lg text-center">
-                          <div className="text-2xl font-display font-bold text-cyber-secondary">
-                            {data.projectSummary.issueStats.question || 0}
-                          </div>
-                          <div className="text-xs text-cyber-muted font-chinese">社区咨询</div>
-                        </div>
-                        <div className="p-3 bg-cyber-muted/10 rounded-lg text-center">
-                          <div className="text-2xl font-display font-bold text-cyber-text">
-                            {data.projectSummary.issueStats.total || 0}
-                          </div>
-                          <div className="text-xs text-cyber-muted font-chinese">Issue 总数</div>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </motion.div>
               )}
@@ -413,10 +709,22 @@ function App() {
             badge={data?.groupedTimeseries?.groups ? Object.keys(data.groupedTimeseries.groups).length : 0}
           />
           <TabButton
+            active={activeTab === 'forecast'}
+            onClick={() => setActiveTab('forecast')}
+            icon={<Zap className="w-4 h-4" />}
+            label="智能预测"
+          />
+          <TabButton
             active={activeTab === 'issues'}
             onClick={() => setActiveTab('issues')}
             icon={<FileText className="w-4 h-4" />}
             label="Issue 分析"
+          />
+          <TabButton
+            active={activeTab === 'chaoss'}
+            onClick={() => setActiveTab('chaoss')}
+            icon={<Award className="w-4 h-4" />}
+            label="CHAOSS 评价"
           />
         </motion.div>
 
@@ -438,6 +746,26 @@ function App() {
             </motion.div>
           )}
           
+          {activeTab === 'forecast' && data?.repoKey && (
+            <motion.div
+              key="forecast"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <ForecastChart 
+                repoKey={data.repoKey}
+                historicalData={data.groupedTimeseries?.groups ? 
+                  Object.values(data.groupedTimeseries.groups).reduce((acc, group) => ({
+                    ...acc,
+                    ...group.metrics
+                  }), {}) : undefined
+                }
+              />
+            </motion.div>
+          )}
+          
           {activeTab === 'issues' && (
             <motion.div
               key="issues"
@@ -445,7 +773,14 @@ function App() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.3 }}
+              className="space-y-6"
             >
+              {/* AI Issue 分析 */}
+              {data?.repoKey && (
+                <IssueAIAnalysis repoKey={data.repoKey} />
+              )}
+              
+              {/* Issue 统计图表 */}
               <IssueAnalysis 
                 data={data?.issueCategories as IssueData[]}
                 keywords={data?.monthlyKeywords}
@@ -454,8 +789,32 @@ function App() {
               />
             </motion.div>
           )}
+
+          {activeTab === 'chaoss' && data?.repoKey && (
+            <motion.div
+              key="chaoss"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <CHAOSSEvaluation repoKey={data.repoKey} />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
+
+      {/* OpenVista 智能助手浮窗 */}
+      <ChatAssistant 
+        repoKey={data?.repoKey} 
+        projectName={currentProject}
+      />
+      
+      {/* 文档页面 */}
+      <DocumentationPage 
+        isOpen={showDocs}
+        onClose={() => setShowDocs(false)}
+      />
     </div>
   )
 }
