@@ -1,18 +1,53 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Github, Sparkles, TrendingUp, Database } from 'lucide-react'
+import { Search, Github, Sparkles, TrendingUp, Database, FolderOpen } from 'lucide-react'
 import ProgressIndicator from './ProgressIndicator'
+
+interface CrawlProgress {
+  step: number
+  stepName: string
+  message: string
+  progress: number
+}
+
+interface LocalProject {
+  name: string
+  full_name: string
+  folder: string
+  has_timeseries: boolean
+  has_text: boolean
+  time_range?: { start: string; end: string; months: number }
+}
 
 interface HomePageProps {
   onProjectReady: (projectName: string) => void
+  onProgressUpdate?: (progress: CrawlProgress) => void
 }
 
-export default function HomePage({ onProjectReady }: HomePageProps) {
+export default function HomePage({ onProjectReady, onProgressUpdate }: HomePageProps) {
   const [owner, setOwner] = useState('')
   const [repo, setRepo] = useState('')
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+  const [localProjects, setLocalProjects] = useState<LocalProject[]>([])
+  const [showLocalProjects, setShowLocalProjects] = useState(false)
+  
+  // 获取本地已有项目列表
+  useEffect(() => {
+    const fetchLocalProjects = async () => {
+      try {
+        const response = await fetch('/api/projects')
+        const data = await response.json()
+        if (data.projects && data.projects.length > 0) {
+          setLocalProjects(data.projects)
+        }
+      } catch (err) {
+        console.error('获取本地项目列表失败:', err)
+      }
+    }
+    fetchLocalProjects()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,10 +85,14 @@ export default function HomePage({ onProjectReady }: HomePageProps) {
           const data = JSON.parse(event.data)
           
           if (data.type === 'start') {
-            setProgress({ step: 0, stepName: '开始', message: data.message, progress: 0 })
+            const progressData = { step: 0, stepName: '开始', message: data.message, progress: 0 }
+            setProgress(progressData)
+            onProgressUpdate?.(progressData)
           } else if (data.type === 'exists') {
             // 数据已存在，直接使用
-            setProgress({ step: 0, stepName: '数据已存在', message: data.message, progress: 100 })
+            const progressData = { step: 0, stepName: '数据已存在', message: data.message, progress: 100 }
+            setProgress(progressData)
+            onProgressUpdate?.(progressData)
             setLoading(false)
             eventSource.close()
             setTimeout(() => {
@@ -61,7 +100,9 @@ export default function HomePage({ onProjectReady }: HomePageProps) {
             }, 500)
           } else if (data.type === 'metrics_ready') {
             // 指标数据已就绪，立即切换到项目页面展示
-            setProgress({ step: data.step || 1, stepName: '指标数据就绪', message: data.message, progress: data.progress || 20 })
+            const progressData = { step: data.step || 1, stepName: '指标数据就绪', message: data.message, progress: data.progress || 20 }
+            setProgress(progressData)
+            onProgressUpdate?.(progressData)
             // 不关闭SSE连接，继续监听后续进度
             // 立即切换到项目页面，让前端可以展示指标数据
             setTimeout(() => {
@@ -69,9 +110,13 @@ export default function HomePage({ onProjectReady }: HomePageProps) {
               // 注意：不设置 setLoading(false)，让进度条继续显示后台爬取进度
             }, 500)
           } else if (data.type === 'progress') {
-            setProgress({ step: data.step, stepName: data.stepName, message: data.message, progress: data.progress })
+            const progressData = { step: data.step, stepName: data.stepName, message: data.message, progress: data.progress }
+            setProgress(progressData)
+            onProgressUpdate?.(progressData)
           } else if (data.type === 'complete') {
-            setProgress({ step: 9, stepName: '完成', message: data.message, progress: 100 })
+            const progressData = { step: 9, stepName: '完成', message: data.message, progress: 100 }
+            setProgress(progressData)
+            onProgressUpdate?.(progressData)
             setLoading(false)
             eventSource.close()
             // 如果之前已经切换到项目页面，这里可以刷新数据
@@ -84,6 +129,7 @@ export default function HomePage({ onProjectReady }: HomePageProps) {
             setError(data.message)
             setLoading(false)
             eventSource.close()
+            onProgressUpdate?.({ step: -1, stepName: '错误', message: data.message, progress: 0 })
           }
         } catch (err) {
           console.error('解析进度数据失败:', err)
@@ -124,7 +170,7 @@ export default function HomePage({ onProjectReady }: HomePageProps) {
           >
             <Sparkles className="w-10 h-10 text-cyber-primary" />
             <h1 className="text-5xl font-display font-bold bg-gradient-to-r from-cyber-primary via-cyber-secondary to-cyber-accent bg-clip-text text-transparent">
-              DataPulse
+              OpenVista
             </h1>
           </motion.div>
           
@@ -208,6 +254,71 @@ export default function HomePage({ onProjectReady }: HomePageProps) {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* 本地项目选择 */}
+        {localProjects.length > 0 && (
+          <motion.div
+            className="mt-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+          >
+            <button
+              onClick={() => setShowLocalProjects(!showLocalProjects)}
+              className="w-full flex items-center justify-center gap-2 py-3 text-cyber-muted hover:text-cyber-primary transition-colors"
+            >
+              <FolderOpen className="w-4 h-4" />
+              <span className="text-sm font-chinese">
+                {showLocalProjects ? '收起' : '查看'} 本地已有数据 ({localProjects.length} 个项目)
+              </span>
+            </button>
+
+            <AnimatePresence>
+              {showLocalProjects && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-4 bg-cyber-card/30 backdrop-blur-sm rounded-xl border border-cyber-border p-4 max-h-64 overflow-y-auto">
+                    <div className="grid gap-2">
+                      {localProjects.map((project, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => onProjectReady(project.name)}
+                          className="w-full flex items-center justify-between p-3 bg-cyber-bg/50 hover:bg-cyber-primary/10 rounded-lg border border-cyber-border/50 hover:border-cyber-primary/50 transition-all group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Github className="w-5 h-5 text-cyber-muted group-hover:text-cyber-primary" />
+                            <div className="text-left">
+                              <div className="text-sm font-medium text-cyber-text group-hover:text-cyber-primary">
+                                {project.full_name || project.name.replace('_', '/')}
+                              </div>
+                              {project.time_range && (
+                                <div className="text-xs text-cyber-muted">
+                                  {project.time_range.start} ~ {project.time_range.end} · {project.time_range.months} 个月
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {project.has_timeseries && (
+                              <span className="text-xs bg-cyber-success/20 text-cyber-success px-2 py-0.5 rounded">指标</span>
+                            )}
+                            {project.has_text && (
+                              <span className="text-xs bg-cyber-secondary/20 text-cyber-secondary px-2 py-0.5 rounded">文本</span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
       </div>
     </div>
   )
