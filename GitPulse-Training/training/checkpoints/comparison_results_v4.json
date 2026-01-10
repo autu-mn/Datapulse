@@ -1,0 +1,32 @@
+{
+  "multimodal_v4": {
+    "mse": 0.16093290649401915,
+    "mae": 0.15649962235408224,
+    "rmse": 0.4011644382220577,
+    "best_epoch": 46
+  },
+  "ts_only_v4": {
+    "mse": 0.16481377317267618,
+    "mae": 0.1636679839746208,
+    "rmse": 0.40597262613712787,
+    "best_epoch": 23
+  },
+  "improvement_pct": 2.3546980352127656,
+  "config": {
+    "data_path": "../Pretrain-data/github_multivar.json",
+    "output_dir": "./checkpoints",
+    "epochs": 100,
+    "batch_size": 8,
+    "lr": 0.0005,
+    "hist_len": 128,
+    "pred_len": 32,
+    "d_model": 128,
+    "lambda_contrastive": 0.1,
+    "lambda_matching": 0.1,
+    "min_text_weight": 0.1,
+    "device": "cuda",
+    "compare": true,
+    "search": false,
+    "n_trials": 10
+  }
+}

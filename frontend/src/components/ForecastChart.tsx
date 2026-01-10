@@ -1303,7 +1303,7 @@ export default function ForecastChart({ repoKey, historicalData, timeAxis }: For
               <p className="text-sm text-cyber-text font-medium font-chinese mb-1">模型说明</p>
               <p className="text-xs text-cyber-muted font-chinese leading-relaxed">
                 {forecast.predictions?.[selectedMetric]?.reasoning || 
-                  'GitPulse 采用 Transformer+Text 多模态架构，融合历史时序数据与项目文本语义进行智能预测。模型在验证集上达到 R²=0.7559，方向准确率 86.7%。'}
+                  'GitPulse 采用 Transformer+Text 多模态架构，通过两阶段训练（预训练+微调）融合历史时序数据与项目文本语义进行智能预测。模型在测试集上达到 R²=0.7699，方向准确率 73.0%。'}
               </p>
             </div>
           </div>

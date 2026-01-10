@@ -550,9 +550,9 @@ class PredictionService:
                 'model': 'GitPulse (Transformer+Text)',
                 'last_month': sorted_months[-1] if sorted_months else None,
                 'model_info': {
-                    'R2': 0.7559,
-                    'MSE': 0.0755,
-                    'DA': 0.8668
+                    'R2': 0.7699,
+                    'MSE': 0.0712,
+                    'DA': 0.7300
                 }
             }
             
@@ -703,7 +703,7 @@ class PredictionService:
                 'confidence': confidence,
                 'trend': trend,
                 'change_percent': round(change_pct, 2),
-                'reasoning': f"基于 GitPulse 多模态 Transformer 模型预测 (R²=0.7559)"
+                'reasoning': f"基于 GitPulse 多模态 Transformer 模型预测 (R²=0.7699)"
             }
         
         return results

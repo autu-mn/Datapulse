@@ -1,0 +1,49 @@
+{
+  "model": "GitPulse v5-Lite",
+  "dataset": {
+    "total_samples": 4232,
+    "train_size": 2962,
+    "val_size": 635,
+    "test_size": 635
+  },
+  "optimizations": [
+    "输入特征增强（趋势 + 动量，无参数增加）",
+    "趋势-残差分解预测",
+    "增强损失函数（方向 + 平滑 + 难样本挖掘）",
+    "数据增强（时序噪声 + 文本dropout）",
+    "保持v4.1的简洁条件初始化架构"
+  ],
+  "parameters": {
+    "trainable": 563525,
+    "total": 66926405
+  },
+  "training": {
+    "epochs": 50,
+    "batch_size": 16,
+    "best_val_mse": 0.1839,
+    "best_epoch": 43,
+    "training_time_minutes": 41.2
+  },
+  "test_results": {
+    "MSE": 0.1874,
+    "MAE": 0.1822,
+    "RMSE": 0.4329,
+    "R2": 0.3820,
+    "DA": 62.03,
+    "TA@0.2": 74.19
+  },
+  "comparison_with_v4.1": {
+    "v4.1_MSE": 0.1876,
+    "v5_MSE": 0.1874,
+    "improvement_MSE": "0.1%",
+    "v4.1_MAE": 0.1840,
+    "v5_MAE": 0.1822,
+    "improvement_MAE": "1.0%",
+    "v4.1_R2": 0.3798,
+    "v5_R2": 0.3820,
+    "improvement_R2": "0.6%"
+  }
+}
+
+
+

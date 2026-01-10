@@ -394,6 +394,13 @@ class MaxKBUploader:
                                         if content_list and len(content_list) > 0:
                                             print(f"[INFO] 文档包含 {len(content_list)} 个段落")
                                             
+                                            # 大文档跳过逐个段落创建，让 MaxKB 自动处理
+                                            MAX_PARAGRAPHS_FOR_MANUAL_CREATE = 100
+                                            if len(content_list) > MAX_PARAGRAPHS_FOR_MANUAL_CREATE:
+                                                print(f"[INFO] 段落数量 > {MAX_PARAGRAPHS_FOR_MANUAL_CREATE}，跳过逐个创建，由 MaxKB 后台自动处理")
+                                                print(f"[INFO] 预计处理时间：{len(content_list) // 50} 分钟，请稍后在 MaxKB 页面查看")
+                                                return True
+                                            
                                             # 检查是否需要单独创建段落
                                             import time
                                             time.sleep(3)  # 等待文档创建完成

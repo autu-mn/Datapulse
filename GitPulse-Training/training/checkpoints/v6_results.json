@@ -1,0 +1,35 @@
+{
+  "model": "GitPulse v6",
+  "architecture": {
+    "d_model": 256,
+    "n_layers": 4,
+    "n_heads": 8,
+    "fusion": "Multi-Layer Cross-Attention"
+  },
+  "dataset": {
+    "train": 2962,
+    "val": 634,
+    "test": 636
+  },
+  "training": {
+    "epochs": 33,
+    "batch_size": 16,
+    "lr": 0.0001,
+    "best_val_mse": 0.19784099296064406,
+    "training_time_min": 18.13882076740265
+  },
+  "test_results": {
+    "MSE": 0.2016481693435765,
+    "MAE": 0.20694203046882678,
+    "RMSE": 0.4490525240365279,
+    "DA": 0.19331380604585108,
+    "R2": 0.3323419690132141,
+    "TA@0.2": 0.7348694205284119
+  },
+  "parameters": {
+    "trainable_params": 5239683,
+    "total_params": 71602563,
+    "trainable_mb": 19.987804412841797,
+    "total_mb": 273.1421012878418
+  }
+}

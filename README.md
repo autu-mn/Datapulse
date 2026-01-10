@@ -29,174 +29,28 @@
 
 Together, these modules provide comprehensive analysis of open-source projects: past, present, and future.
 
-### ✨ Key Features
-
-| Feature | Description |
-|---------|-------------|
-| 🤖 **MaxKB AI Q&A** | RAG-powered knowledge base Q&A for project documentation |
-| 🔮 **GitPulse Prediction** | Time-series + text embeddings, forecasting up to 24 months |
-| 📊 **CHAOSS Evaluation** | Community health assessment with 6-dimension radar visualization |
-| 🔍 **Similar Repo Discovery** | Find related projects via GitHub API-based similarity matching |
-| 📈 **Interactive Visualization** | Beautiful charts with 60+ months historical data comparison |
-| ⚡ **Real-time Crawling** | Fetch any GitHub repository data on demand |
-
 ---
 
-## 🤖 MaxKB Intelligent Q&A System
+## 📑 Table of Contents
 
-<div align="center">
-<img src="image/MaxKB知识库.png" alt="MaxKB Knowledge Base" width="700"/>
-</div>
-
-### System Architecture
-
-MaxKB is the **AI Q&A core** of OpenVista, using **RAG (Retrieval-Augmented Generation)** technology to enable natural language questions about any analyzed repository.
-
-```
-User Question → MaxKB Retrieves from Knowledge Base → LLM Generates Answer → Response
-```
-
-### Knowledge Base Contents
-
-The system automatically builds a knowledge base for each analyzed repository:
-
-| Document Type | Description |
-|---------------|-------------|
-| 📄 **README** | Project introduction, installation guide, usage instructions |
-| 📜 **LICENSE** | Open source license information |
-| 📁 **docs/** | All documents in the project's docs directory |
-| 📊 **Project Summary** | AI-generated project analysis report |
-| 🐛 **Issue Summary** | Aggregated issue data and classifications |
-
-### Tech Stack & Tools
-
-| Component | Tool/Technology | Description |
-|-----------|-----------------|-------------|
-| **Knowledge Base Platform** | [MaxKB](https://github.com/1Panel-dev/MaxKB) | Open-source RAG knowledge base system |
-| **Deployment** | Docker Compose | One-click deployment with data persistence |
-| **Vector Database** | PostgreSQL + pgvector | Efficient vector similarity search |
-| **LLM Backend** | Configurable (DeepSeek/OpenAI etc.) | Supports multiple LLM providers |
-
-### Deployment & Configuration
-
-#### Option 1: Use Pre-configured Knowledge Base (Recommended)
-
-```bash
-cd maxkb-export
-
-# One-click install (includes database backup restoration)
-chmod +x install.sh
-./install.sh
-```
-
-The installation script will automatically:
-- Pull MaxKB Docker image
-- Create data volumes and restore pre-configured data
-- Start service at `http://localhost:8080`
-
-#### Option 2: Fresh Installation
-
-```bash
-# Start with Docker Compose
-docker-compose -f docker-compose.maxkb.yml up -d
-```
-
-#### Configure .env File
-
-```env
-# MaxKB Service Configuration
-MAXKB_URL=http://localhost:8080
-MAXKB_USERNAME=admin
-MAXKB_PASSWORD=your_password
-MAXKB_KNOWLEDGE_ID=your_knowledge_id
-
-# MaxKB AI API (for Q&A)
-MAXKB_AI_URL=http://localhost:8080/api/application/{app_id}/chat/completions
-MAXKB_API_KEY=your_maxkb_api_key
-```
-
-### Usage
-
-1. **Automatic Document Upload**: Documents are automatically uploaded to MaxKB during repository crawling
-2. **Intelligent Q&A**: Ask questions in the platform's AI Q&A module
-3. **Prediction Explanations**: MaxKB generates interpretability analysis for predictions
-
-<div align="center">
-<img src="image/Agent.png" alt="AI Agent" width="600"/>
-</div>
-
----
-
-## 🔬 GitPulse Prediction Model
-
-<div align="center">
-<img src="image/时序与文本的结合效果.png" alt="GitPulse Model Effect" width="700"/>
-</div>
-
-### Model Overview
-
-**GitPulse** is OpenVista's core multimodal time-series prediction model, capable of simultaneously forecasting 16 OpenDigger metrics.
-
-### Model Performance
-
-<div align="center">
-
-| Metric | Value | Description |
-|:------:|:-----:|:------------|
-| **MSE** | 0.0886 | Mean Squared Error (lower is better) |
-| **R²** | 0.70 | Coefficient of Determination |
-| **DA** | 67.28% | Directional Accuracy |
-
-</div>
-
-<details>
-<summary>📊 Click to see performance comparison chart</summary>
-
-<div align="center">
-<img src="image/不同方法在测试集上的性能对比.png" alt="Performance Comparison" width="700"/>
-</div>
-
-</details>
-
-### Architecture Highlights
-
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| **Time-Series Encoder** | Conditional GRU | Captures temporal patterns across 16 metrics |
-| **Text Encoder** | DistilBERT | Extracts features from project descriptions, issues |
-| **Fusion Layer** | Multimodal Fusion | Combines time-series and text information |
-| **Prediction Head** | MLP | Outputs predictions for 12-24 months ahead |
-
-### Why Multimodal?
-
-Text information (Issues, README, Commits) provides context that pure time-series models miss:
-- 📢 Upcoming features or breaking changes
-- 💬 Community discussions and sentiment
-- 🗺️ Project roadmap and priorities
-
-### Supported Metrics (16 total)
-
-| Category | Metrics |
-|----------|---------|
-| **Popularity** | OpenRank, Stars, Forks, Attention |
-| **Activity** | Activity, Participants, New Contributors |
-| **Contributors** | Contributors, Inactive Contributors, Bus Factor |
-| **Issues** | New Issues, Closed Issues, Issue Comments |
-| **Pull Requests** | Change Requests, PR Accepted, PR Reviews |
-
-### Training Your Own Model
-
-```bash
-cd get-dataset
-
-# Generate dataset (default: 10,000 repos)
-python generate_training_dataset.py --count 10000
-
-# Resume from interruption
-python generate_training_dataset.py --resume
-```
-
-See [get-dataset/README.md](get-dataset/README.md) for detailed options.
+- [🌟 Overview](#-overview)
+- [🛠️ Tech Stack](#️-tech-stack)
+- [📁 Project Structure](#-project-structure)
+- [🤖 MaxKB Intelligent Q&A System](#-maxkb-intelligent-qa-system)
+  - [System Architecture](#system-architecture)
+  - [Knowledge Base Contents](#knowledge-base-contents)
+  - [Deployment & Configuration](#deployment--configuration)
+- [🔬 GitPulse Prediction Model](#-gitpulse-prediction-model)
+  - [Model Performance](#model-performance)
+  - [Model Overview](#model-overview)
+  - [Architecture Highlights](#architecture-highlights)
+  - [Two-Stage Training](#two-stage-training)
+- [✨ Feature Gallery](#-feature-gallery)
+- [🚀 Quick Start](#-quick-start)
+- [📖 Usage Guide](#-usage-guide)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
+- [🙏 Acknowledgments](#-acknowledgments)
 
 ---
 
@@ -285,6 +139,269 @@ OpenVista/
 │
 └── 📄 README.md
 ```
+
+---
+
+## 🤖 MaxKB Intelligent Q&A System
+
+<div align="center">
+<img src="image/MaxKB知识库.png" alt="MaxKB Knowledge Base" width="700"/>
+</div>
+
+### System Architecture
+
+MaxKB is the **AI Q&A core** of OpenVista, using **RAG (Retrieval-Augmented Generation)** technology to enable natural language questions about any analyzed repository.
+
+```
+User Question → MaxKB Retrieves from Knowledge Base → LLM Generates Answer → Response
+```
+
+### Knowledge Base Contents
+
+The system automatically builds a knowledge base for each analyzed repository:
+
+| Document Type | Description |
+|---------------|-------------|
+| 📄 **README** | Project introduction, installation guide, usage instructions |
+| 📜 **LICENSE** | Open source license information |
+| 📁 **docs/** | All documents in the project's docs directory |
+| 📊 **Project Summary** | AI-generated project analysis report |
+| 🐛 **Issue Summary** | Sampled issue data (30 issues/month × 50 months max) |
+
+### Tech Stack & Tools
+
+| Component | Tool/Technology | Description |
+|-----------|-----------------|-------------|
+| **Knowledge Base Platform** | [MaxKB](https://github.com/1Panel-dev/MaxKB) | Open-source RAG knowledge base system |
+| **Deployment** | Docker Compose | One-click deployment with data persistence |
+| **Vector Database** | PostgreSQL + pgvector | Efficient vector similarity search |
+| **LLM Backend** | Configurable (DeepSeek/OpenAI etc.) | Supports multiple LLM providers |
+
+### Deployment & Configuration
+
+#### Option 1: Use Pre-configured Knowledge Base (Recommended)
+
+```bash
+cd maxkb-export
+
+# One-click install (includes database backup restoration)
+chmod +x install.sh
+./install.sh
+```
+
+The installation script will automatically:
+- Pull MaxKB Docker image
+- Create data volumes and restore pre-configured data
+- Start service at `http://localhost:8080`
+
+#### Option 2: Fresh Installation
+
+```bash
+# Start with Docker Compose
+docker-compose -f docker-compose.maxkb.yml up -d
+```
+
+#### Configure .env File
+
+```env
+# MaxKB Service Configuration
+MAXKB_URL=http://localhost:8080
+MAXKB_USERNAME=admin
+MAXKB_PASSWORD=your_password
+MAXKB_KNOWLEDGE_ID=your_knowledge_id
+
+# MaxKB AI API (for Q&A)
+MAXKB_AI_URL=http://localhost:8080/api/application/{app_id}/chat/completions
+MAXKB_API_KEY=your_maxkb_api_key
+```
+
+### Usage
+
+1. **Automatic Document Upload**: Documents are automatically uploaded to MaxKB during repository crawling
+2. **Intelligent Q&A**: Ask questions in the platform's AI Q&A module
+3. **Prediction Explanations**: MaxKB generates interpretability analysis for predictions
+
+<div align="center">
+<img src="image/Agent.png" alt="AI Agent" width="600"/>
+</div>
+
+---
+
+## 🔬 GitPulse Prediction Model
+
+### Model Performance
+
+<div align="center">
+<img src="image/不同方法在测试集上的性能对比.png" alt="Performance Comparison" width="800"/>
+</div>
+
+Evaluated on **636 test samples** from **4,232 GitHub projects** (Two-stage training: Pretrain + Fine-tune):
+
+<div align="center">
+
+| Model | MSE ↓ | MAE ↓ | R² ↑ | DA ↑ | TA@0.2 ↑ |
+|:------|:-----:|:-----:|:----:|:----:|:--------:|
+| **GitPulse (Transformer+Text)** | **0.0712** | **0.1075** | **0.77** | **73.00%** | **81.75%** |
+| CondGRU+Text | 0.0949 | 0.1243 | 0.69 | 68.56% | 79.55% |
+| GRU+Text | 0.1084 | 0.1297 | 0.65 | 68.28% | 79.12% |
+| Transformer | 0.1693 | 0.1667 | 0.46 | 62.22% | 75.97% |
+| CondGRU | 0.1961 | 0.1872 | 0.44 | 61.49% | 74.39% |
+| LSTM | 0.2142 | 0.1914 | 0.46 | 56.00% | 75.00% |
+| MLP | 0.2280 | 0.2025 | 0.34 | 56.00% | 73.00% |
+| Linear | 0.2261 | 0.1896 | 0.34 | 53.00% | 74.00% |
+
+</div>
+
+> **Text Contribution**: Adding text features improves R² from 0.46 → 0.77 (**+66.7%**)
+
+### Model Overview
+
+**GitPulse** is OpenVista's core multimodal time-series prediction model, capable of simultaneously forecasting 16 OpenDigger metrics.
+
+<div align="center">
+<img src="image/预测模型.png" alt="GitPulse Prediction Interface" width="800"/>
+</div>
+
+### Architecture Highlights
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **Time-Series Encoder** | Transformer (2 layers, 4 heads) | Captures temporal patterns across 16 metrics |
+| **Text Encoder** | DistilBERT (frozen) + Attention Pooling | Extracts features from project descriptions |
+| **Fusion Layer** | Cross-Attention + Dynamic Gating (0.1-0.3) | Text-guided temporal feature fusion |
+| **Auxiliary Tasks** | Contrastive Learning + Matching | Improves text-timeseries alignment |
+| **Prediction Head** | MLP + Time Projection | Outputs predictions for 32 months ahead |
+
+<details>
+<summary>📈 Click to see text contribution effect</summary>
+
+<div align="center">
+<img src="image/时序与文本的结合效果.png" alt="GitPulse Model Effect" width="700"/>
+</div>
+
+</details>
+
+### Model Parameters
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| d_model | 128 | Model hidden dimension |
+| n_heads | 4 | Multi-head attention heads |
+| n_layers | 2 | Transformer encoder layers |
+| hist_len | 128 months | Historical input length |
+| pred_len | 32 months | Prediction horizon |
+| n_vars | 16 | Number of metrics |
+| text_weight | 0.1-0.3 | Dynamic text contribution |
+
+### Two-Stage Training
+
+1. **Pretraining**: Multi-task learning with MSE + Contrastive Loss (λ=0.1) + Matching Loss (λ=0.05)
+2. **Fine-tuning**: Full parameter fine-tuning with lower learning rate (1e-5)
+
+### Supported Metrics (16 total)
+
+| Category | Metrics |
+|----------|---------|
+| **Popularity** | OpenRank, Stars, Forks, Attention |
+| **Activity** | Activity, Participants, New Contributors |
+| **Contributors** | Contributors, Inactive Contributors, Bus Factor |
+| **Issues** | New Issues, Closed Issues, Issue Comments |
+| **Pull Requests** | Change Requests, PR Accepted, PR Reviews |
+
+### Training Your Own Model
+
+```bash
+cd get-dataset
+
+# Generate dataset (default: 10,000 repos)
+python generate_training_dataset.py --count 10000
+
+# Resume from interruption
+python generate_training_dataset.py --resume
+```
+
+See [get-dataset/README.md](get-dataset/README.md) for detailed options.
+
+---
+
+## ✨ Feature Gallery
+
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| 🤖 **MaxKB AI Q&A** | RAG-powered knowledge base Q&A for project documentation |
+| 🔮 **GitPulse Prediction** | Time-series + text embeddings, forecasting up to 32 months |
+| 📊 **CHAOSS Evaluation** | Community health assessment with 6-dimension radar visualization |
+| 🔍 **Similar Repo Discovery** | Find related projects via GitHub API-based similarity matching |
+| 📈 **Interactive Visualization** | Beautiful charts with 60+ months historical data comparison |
+| ⚡ **Real-time Crawling** | Fetch any GitHub repository data on demand |
+
+<details>
+<summary><b>🔮 Intelligent Prediction</b> - 12-month forecasting with historical comparison</summary>
+
+<div align="center">
+<img src="image/预测模型.png" alt="Prediction Model" width="800"/>
+</div>
+
+**AI-Powered Prediction Explanation:**
+
+<div align="center">
+<img src="image/issue预测解释图.png" alt="AI Prediction Explanation" width="800"/>
+</div>
+
+</details>
+
+<details>
+<summary><b>📊 Time-Series Visualization</b> - Multi-dimensional metric analysis</summary>
+
+<div align="center">
+<img src="image/可视化图.png" alt="Visualization Dashboard" width="800"/>
+</div>
+
+</details>
+
+<details>
+<summary><b>🏥 CHAOSS Health Evaluation</b> - 6-dimension radar chart analysis</summary>
+
+<div align="center">
+<img src="image/CHAOSS健康评价.png" alt="CHAOSS Evaluation" width="800"/>
+</div>
+
+</details>
+
+<details>
+<summary><b>🤖 AI Smart Summary</b> - Project analysis with similar repo recommendations</summary>
+
+<div align="center">
+<img src="image/项目摘要.png" alt="AI Summary" width="800"/>
+</div>
+
+</details>
+
+<details>
+<summary><b>🐛 Issue Analysis</b> - Intelligent classification and trend analysis</summary>
+
+<div align="center">
+<img src="image/issue分析（2）.png" alt="Issue Analysis" width="800"/>
+</div>
+
+**Classification Statistics:**
+
+<div align="center">
+<img src="image/issue分析（1）.png" alt="Issue Classification" width="800"/>
+</div>
+
+</details>
+
+<details>
+<summary><b>📖 Built-in Documentation</b> - Technical documentation and API reference</summary>
+
+<div align="center">
+<img src="image/技术文档.png" alt="Technical Documentation" width="800"/>
+</div>
+
+</details>
 
 ---
 

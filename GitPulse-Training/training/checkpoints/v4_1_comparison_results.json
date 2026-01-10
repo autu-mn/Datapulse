@@ -1,0 +1,46 @@
+{
+  "results": {
+    "Transformer+Text": {
+      "mse": 0.15283169747806355,
+      "mae": 0.15905281679689393,
+      "rmse": 0.39093694821296127,
+      "epoch": 99
+    },
+    "Transformer": {
+      "mse": 0.16764075894001101,
+      "mae": 0.16586843896503292,
+      "rmse": 0.4094395668960329,
+      "epoch": 37
+    },
+    "GRU+Text": {
+      "mse": 0.14389640845824583,
+      "mae": 0.15275210043615547,
+      "rmse": 0.37933680082249577,
+      "epoch": 94
+    },
+    "GRU": {
+      "mse": 0.14497407056927822,
+      "mae": 0.15528459855769855,
+      "rmse": 0.38075460676041495,
+      "epoch": 99
+    },
+    "CondGRU+Text": {
+      "mse": 0.12771780473986089,
+      "mae": 0.14460222456503083,
+      "rmse": 0.35737627892721263,
+      "epoch": 100
+    }
+  },
+  "text_contribution": {
+    "Transformer": 8.833807217042471,
+    "GRU": 0.7433481772296697,
+    "CondGRU": 11.903001524104372,
+    "PatchTST_v4_reference": 10.67
+  },
+  "conclusion": {
+    "transformer_positive": true,
+    "gru_positive": true,
+    "cond_gru_positive": true,
+    "best_strategy": "CondGRU"
+  }
+}

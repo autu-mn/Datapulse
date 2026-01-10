@@ -385,7 +385,7 @@ export default function DataAnalysisPanel({
             <div className="font-semibold text-blue-400 mb-1">GitPulse 模型</div>
             <p>使用条件 GRU + 文本融合的多模态时序预测模型</p>
             <p className="mt-1 text-xs text-gray-400">
-              性能指标: MSE=0.0886, R²=0.70, DA=67.28%, TA@0.2=81.41%
+              性能指标: MSE=0.0712, R²=0.7699, DA=73.00%, TA@0.2=81.75%
             </p>
           </div>
         </div>
@@ -779,7 +779,7 @@ export default function DataAnalysisPanel({
             <div className="font-semibold text-blue-400 mb-1">GitPulse 模型</div>
             <p>使用条件 GRU + 文本融合的多模态时序预测模型</p>
             <p className="mt-1 text-xs text-gray-400">
-              性能指标: MSE=0.0886, R²=0.70, DA=67.28%, TA@0.2=81.41%
+              性能指标: MSE=0.0712, R²=0.7699, DA=73.00%, TA@0.2=81.75%
             </p>
           </div>
         </div>

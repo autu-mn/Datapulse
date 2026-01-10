@@ -1,0 +1,52 @@
+{
+  "model_name": "GitPulse",
+  "version": "1.0",
+  "architecture": "Transformer+Text",
+  
+  "model_config": {
+    "n_vars": 16,
+    "d_model": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "hist_len": 128,
+    "pred_len": 32,
+    "dropout": 0.1,
+    "freeze_bert": true
+  },
+  
+  "training_config": {
+    "dataset": "github_multivar",
+    "n_samples": 4232,
+    "train_ratio": 0.7,
+    "val_ratio": 0.15,
+    "test_ratio": 0.15,
+    "batch_size": 16,
+    "optimizer": "AdamW",
+    "learning_rate": 1e-5,
+    "weight_decay": 0.01,
+    "finetune_strategy": "freeze",
+    "epochs": 50,
+    "patience": 10
+  },
+  
+  "evaluation_results": {
+    "MSE": 0.0755,
+    "MAE": 0.1094,
+    "RMSE": 0.2748,
+    "R2": 0.7559,
+    "DA": 0.8668,
+    "TA@0.2": 0.8160
+  },
+  
+  "text_contribution": {
+    "baseline_r2": 0.6312,
+    "with_text_r2": 0.7559,
+    "improvement": "19.8%"
+  }
+}
+
+
+
+
+
+

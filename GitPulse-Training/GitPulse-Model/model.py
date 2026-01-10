@@ -189,15 +189,53 @@ class GitPulseModel(nn.Module):
         return output
     
     @classmethod
-    def from_pretrained(cls, path: str, device: str = 'cuda'):
-        """从预训练权重加载模型"""
-        config_path = os.path.join(path, 'config.json')
-        weights_path = os.path.join(path, 'gitpulse_weights.pt')
+    def from_pretrained(cls, repo_id: str = "Patronum-ZJ/GitPulse", device: str = 'cuda'):
+        """
+        从 HuggingFace Hub 或本地路径加载预训练模型
+        
+        Args:
+            repo_id: HuggingFace 模型 ID (如 "Patronum-ZJ/GitPulse") 或本地路径
+            device: 设备 ('cuda' 或 'cpu')
+        
+        Returns:
+            GitPulseModel 实例
+        """
+        # 检查是否是 HuggingFace Hub 路径
+        if '/' in repo_id and not os.path.exists(repo_id):
+            try:
+                from huggingface_hub import hf_hub_download, snapshot_download
+                print(f"Downloading model from HuggingFace Hub: {repo_id}")
+                
+                # 下载配置文件
+                config_path = hf_hub_download(
+                    repo_id=repo_id,
+                    filename="config.json",
+                    cache_dir=None
+                )
+                
+                # 下载模型权重
+                weights_path = hf_hub_download(
+                    repo_id=repo_id,
+                    filename="gitpulse_weights.pt",
+                    cache_dir=None
+                )
+                
+            except ImportError:
+                raise ImportError(
+                    "huggingface_hub is required. Install it with: pip install huggingface_hub"
+                )
+            except Exception as e:
+                raise RuntimeError(f"Failed to download model from HuggingFace Hub: {e}")
+        else:
+            # 本地路径
+            config_path = os.path.join(repo_id, 'config.json')
+            weights_path = os.path.join(repo_id, 'gitpulse_weights.pt')
         
         # 加载配置
         if os.path.exists(config_path):
-            with open(config_path, 'r') as f:
-                config = json.load(f)
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+                config = config_data.get('model_config', config_data)
         else:
             config = {}
         
@@ -208,7 +246,9 @@ class GitPulseModel(nn.Module):
             n_heads=config.get('n_heads', 4),
             n_layers=config.get('n_layers', 2),
             hist_len=config.get('hist_len', 128),
-            pred_len=config.get('pred_len', 32)
+            pred_len=config.get('pred_len', 32),
+            dropout=config.get('dropout', 0.1),
+            freeze_bert=config.get('freeze_bert', True)
         )
         
         # 加载权重
@@ -216,6 +256,8 @@ class GitPulseModel(nn.Module):
             state_dict = torch.load(weights_path, map_location=device, weights_only=False)
             model.load_state_dict(state_dict, strict=False)
             print(f"✓ Loaded weights from {weights_path}")
+        else:
+            print(f"⚠ Warning: Weights file not found at {weights_path}")
         
         return model.to(device)
     
@@ -253,9 +295,9 @@ def get_model_info():
         'architecture': 'Transformer+Text',
         'description': 'Multimodal time series prediction model for GitHub project health',
         'metrics': {
-            'R2': 0.7699,
-            'MSE': 0.0712,
-            'DA': 0.7300,
+            'R2': 0.7559,
+            'MSE': 0.0755,
+            'DA': 0.8668,
             'TA@0.2': 0.8160
         }
     }

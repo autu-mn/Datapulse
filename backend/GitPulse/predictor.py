@@ -350,7 +350,7 @@ class GitPulsePredictor:
             return {
                 "forecast": forecast,
                 "confidence": confidence,
-                "reasoning": f"基于 GitPulse 多模态时序预测模型，使用条件 GRU + 文本融合方法预测。模型性能: MSE=0.0886, R²=0.70, DA=67.28%",
+                "reasoning": f"基于 GitPulse 多模态时序预测模型，使用 Transformer + 文本融合方法（两阶段训练）预测。模型性能: MSE=0.0712, R²=0.7699, DA=73.00%",
                 "trend_analysis": {
                     "direction": "上升" if len(forecast) > 0 and list(forecast.values())[-1] > list(historical_data.values())[-1] else "下降",
                     "strength": "中等",

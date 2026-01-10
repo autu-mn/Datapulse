@@ -1,0 +1,12 @@
+# 模型文件（如果文件太大，可以忽略）
+# models/*.pt
+
+# 预测结果文件
+*.json
+!example_*.json
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+

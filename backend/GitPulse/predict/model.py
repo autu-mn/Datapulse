@@ -253,9 +253,9 @@ def get_model_info():
         'architecture': 'Transformer+Text',
         'description': 'Multimodal time series prediction model for GitHub project health',
         'metrics': {
-            'R2': 0.7559,
-            'MSE': 0.0755,
-            'DA': 0.8668,
+            'R2': 0.7699,
+            'MSE': 0.0712,
+            'DA': 0.7300,
             'TA@0.2': 0.8160
         }
     }

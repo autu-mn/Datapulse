@@ -118,7 +118,7 @@ export default function IssueAnalysis({ data, keywords, selectedMonth, onMonthSe
                 Issue 分类统计
               </h2>
               <p className="text-sm text-cyber-muted font-chinese mt-1">
-                按月度统计功能需求、Bug修复、社区咨询分布
+                按月度统计功能需求、Bug修复、社区咨询分布（每月抽样 30 条）
               </p>
             </div>
             
