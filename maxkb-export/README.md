@@ -68,7 +68,9 @@ docker start openvista-maxkb
 docker restart openvista-maxkb
 
 # 完全卸载
-docker compose -f maxkb-export/docker-compose.yml down -v
+docker stop openvista-maxkb 2>/dev/null || true
+docker rm -f openvista-maxkb 2>/dev/null || true
+docker volume rm -f openvista_maxkb_data 2>/dev/null || true
 ```
 
 ---
@@ -79,4 +81,4 @@ docker compose -f maxkb-export/docker-compose.yml down -v
 |------|----------|
 | 登录失败 | 密码为 `MaxKB@123456` |
 | AI 无响应 | 检查「模型管理」中的 API Key 是否正确 |
-| 端口冲突 | 编辑 `docker-compose.yml`，改为其他端口 |
+| 端口冲突 | 修改 `install.sh` 中的端口映射，或使用根目录的 `docker-compose.maxkb.yml` |

@@ -45,6 +45,7 @@
   - [模型概述](#模型概述)
   - [架构亮点](#架构亮点)
   - [两阶段训练](#两阶段训练)
+  - [复现 GitPulse 模型](#复现-gitpulse-模型)
 - [✨ 功能亮点](#-功能亮点)
 - [🚀 快速开始](#-快速开始)
 - [📖 使用指南](#-使用指南)
@@ -131,6 +132,15 @@ OpenVista/
 ├── 🎨 frontend/                    # React 前端
 │
 ├── 📊 get-dataset/                 # 训练数据集生成器
+│
+├── 🔬 GitPulse-Training/          # GitPulse 模型训练与复现
+│   ├── model/                     # 模型架构定义
+│   ├── training/                  # 训练脚本
+│   ├── Fine-tuning/               # 微调实验
+│   ├── predict/                   # 预测脚本
+│   ├── ablation-test/             # 消融实验
+│   ├── baseline-test/             # 基线对比实验
+│   └── Pretrain-data/             # 训练数据集
 │
 ├── 🐳 maxkb-export/                # MaxKB 部署配置
 │   ├── install.sh                  # 一键安装脚本
@@ -321,6 +331,63 @@ python generate_training_dataset.py --resume
 ```
 
 详细说明请参考 [get-dataset/README.md](get-dataset/README.md)。
+
+### 复现 GitPulse 模型
+
+我们提供了完整的训练仓库 `GitPulse-Training/`，用于从零开始复现 GitPulse 模型。
+
+#### 快速开始
+
+```bash
+cd GitPulse-Training
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 训练模型（两阶段训练）
+cd training
+python train_multimodal_v4_1.py --epochs 100 --batch_size 8
+
+# 微调（获得最佳性能）
+cd ../Fine-tuning
+python finetune_all_v4_1.py \
+    --pretrained_checkpoint ../training/checkpoints/best_model_transformer_mm.pt \
+    --strategy full \
+    --epochs 50 \
+    --batch_size 8 \
+    --lr 1e-5
+```
+
+#### 目录结构
+
+```
+GitPulse-Training/
+├── model/                          # 模型架构定义
+│   └── multimodal_ts_v4_1.py      # Transformer+Text 模型
+├── training/                       # 训练脚本
+│   ├── train_multimodal_v4_1.py   # 主训练脚本
+│   └── checkpoints/               # 保存的模型权重
+├── Fine-tuning/                   # 微调实验
+│   └── results/                   # 微调后的模型
+├── predict/                       # 预测脚本
+│   └── predict_single_repo.py    # 单仓库预测脚本
+├── ablation-test/                 # 消融实验
+├── baseline-test/                 # 基线对比实验
+├── merge-test/                    # 融合方法对比实验
+├── Pretrain-data/                 # 训练数据集
+│   └── github_multivar.json      # 多变量时序数据
+├── evaluate_all_models.py         # 统一评估脚本
+└── README.md                      # 详细训练指南
+```
+
+#### 核心特性
+
+- **两阶段训练**：多任务学习预训练 + 全参数微调
+- **完整实验**：消融实验、基线对比、融合方法测试
+- **统一评估**：单一脚本评估所有模型，包含完整指标
+- **生产就绪**：包含实际使用的预测脚本
+
+详细的训练说明、模型架构和实验结果，请参考 [GitPulse-Training/README.md](GitPulse-Training/README.md)。
 
 ---
 

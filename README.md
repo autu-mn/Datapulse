@@ -45,6 +45,7 @@ Together, these modules provide comprehensive analysis of open-source projects: 
   - [Model Overview](#model-overview)
   - [Architecture Highlights](#architecture-highlights)
   - [Two-Stage Training](#two-stage-training)
+  - [Reproducing GitPulse Model](#reproducing-gitpulse-model)
 - [✨ Feature Gallery](#-feature-gallery)
 - [🚀 Quick Start](#-quick-start)
 - [📖 Usage Guide](#-usage-guide)
@@ -131,6 +132,15 @@ OpenVista/
 ├── 🎨 frontend/                    # React Frontend
 │
 ├── 📊 get-dataset/                 # Training Dataset Generator
+│
+├── 🔬 GitPulse-Training/          # GitPulse Model Training & Reproduction
+│   ├── model/                     # Model Architecture Definitions
+│   ├── training/                  # Training Scripts
+│   ├── Fine-tuning/               # Fine-tuning Experiments
+│   ├── predict/                   # Prediction Scripts
+│   ├── ablation-test/             # Ablation Studies
+│   ├── baseline-test/             # Baseline Comparisons
+│   └── Pretrain-data/             # Training Dataset
 │
 ├── 🐳 maxkb-export/                # MaxKB Deployment Config
 │   ├── install.sh                  # One-click Install Script
@@ -321,6 +331,63 @@ python generate_training_dataset.py --resume
 ```
 
 See [get-dataset/README.md](get-dataset/README.md) for detailed options.
+
+### Reproducing GitPulse Model
+
+We provide a complete training repository `GitPulse-Training/` for reproducing the GitPulse model from scratch.
+
+#### Quick Start
+
+```bash
+cd GitPulse-Training
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Train the model (two-stage training)
+cd training
+python train_multimodal_v4_1.py --epochs 100 --batch_size 8
+
+# Fine-tuning (for best performance)
+cd ../Fine-tuning
+python finetune_all_v4_1.py \
+    --pretrained_checkpoint ../training/checkpoints/best_model_transformer_mm.pt \
+    --strategy full \
+    --epochs 50 \
+    --batch_size 8 \
+    --lr 1e-5
+```
+
+#### Directory Structure
+
+```
+GitPulse-Training/
+├── model/                          # Model architecture definitions
+│   └── multimodal_ts_v4_1.py      # Transformer+Text model
+├── training/                       # Training scripts
+│   ├── train_multimodal_v4_1.py   # Main training script
+│   └── checkpoints/               # Saved model weights
+├── Fine-tuning/                   # Fine-tuning experiments
+│   └── results/                   # Fine-tuned models
+├── predict/                       # Prediction scripts
+│   └── predict_single_repo.py    # Single repository prediction
+├── ablation-test/                 # Ablation studies
+├── baseline-test/                 # Baseline comparisons
+├── merge-test/                    # Fusion method comparisons
+├── Pretrain-data/                 # Training dataset
+│   └── github_multivar.json      # Multi-variable time-series data
+├── evaluate_all_models.py         # Unified evaluation script
+└── README.md                      # Detailed training guide
+```
+
+#### Key Features
+
+- **Two-Stage Training**: Pretraining with multi-task learning + full parameter fine-tuning
+- **Complete Experiments**: Ablation studies, baseline comparisons, fusion method tests
+- **Unified Evaluation**: Single script to evaluate all models with comprehensive metrics
+- **Production Ready**: Includes prediction scripts for real-world usage
+
+For detailed training instructions, model architecture, and experiment results, see [GitPulse-Training/README.md](GitPulse-Training/README.md).
 
 ---
 
