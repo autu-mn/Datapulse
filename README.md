@@ -33,7 +33,7 @@ Together, these modules provide comprehensive analysis of open-source projects: 
 
 ### 💡 The Problem We're Solving
 
-Open-source projects face numerous challenges in maintaining long-term health and sustainability. Our research, based on **4,232 GitHub repositories**, reveals critical gaps in how we understand and predict project health:
+Open-source projects face numerous challenges in maintaining long-term health and sustainability. Our research, based on **600+ GitHub repositories**, reveals critical gaps in how we understand and predict project health:
 
 #### 🔴 Current Pain Points
 
@@ -285,7 +285,7 @@ MAXKB_API_KEY=your_maxkb_api_key
 <img src="image/不同方法在测试集上的性能对比.png" alt="Performance Comparison" width="800"/>
 </div>
 
-Evaluated on **636 test samples** from **4,232 GitHub projects** (Two-stage training: Pretrain + Fine-tune):
+Evaluated on **636 test samples** from **4,232 samples（Generated from 600+ projects）** (Two-stage training: Pretrain + Fine-tune):
 
 <div align="center">
 
