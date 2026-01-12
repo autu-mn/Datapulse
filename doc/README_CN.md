@@ -478,54 +478,78 @@ GitPulse-Training/
 
 - Python 3.8+
 - Node.js 16+
-- Docker（用于 MaxKB）
-- Git LFS（用于模型权重）
+- Docker Desktop（用于 MaxKB）
+- Git（自动安装 Git LFS）
 
-### 1️⃣ 克隆与初始化
+### 🎯 一键安装（推荐）
 
-```bash
-# 克隆仓库
+我们提供了统一的安装脚本，自动完成所有配置：
+
+**Windows PowerShell:**
+```powershell
 git clone https://github.com/your-username/OpenVista.git
 cd OpenVista
+.\setup.ps1
+```
 
-# 初始化 Git LFS 并拉取模型权重
-# Windows:
-setup.bat
-# Linux/Mac:
+**Linux / macOS:**
+```bash
+git clone https://github.com/your-username/OpenVista.git
+cd OpenVista
 chmod +x setup.sh && ./setup.sh
 ```
 
-### 2️⃣ 部署 MaxKB（可选但推荐）
+安装脚本将自动完成：
+
+| 步骤 | 说明 |
+|------|------|
+| 📦 Git LFS | 拉取模型权重、训练数据、知识库数据 |
+| 🐳 Docker | 检测安装状态，引导安装 |
+| 🤖 MaxKB | 一键部署知识库系统，自动恢复数据 |
+| 🔑 GitHub Token | 交互式配置，自动验证有效性 |
+| 📚 依赖安装 | Python/Node.js 依赖可选安装 |
+
+---
+
+### 📖 手动安装（高级用户）
+
+<details>
+<summary>点击展开手动安装步骤</summary>
+
+#### 1️⃣ 克隆与初始化
+
+```bash
+git clone https://github.com/your-username/OpenVista.git
+cd OpenVista
+
+# 拉取大文件（模型权重、训练数据）
+git lfs install
+git lfs pull
+```
+
+#### 2️⃣ 部署 MaxKB
 
 ```bash
 cd maxkb-export
 chmod +x install.sh
-./install.sh
+./install.sh  # 或 Windows: .\install.ps1
 ```
 
 访问 `http://localhost:8080` 验证 MaxKB 运行正常。
 
-### 3️⃣ 环境配置
+#### 3️⃣ 环境配置
 
-在项目根目录创建 `.env` 文件：
+在 `backend/` 目录创建 `.env` 文件：
 
 ```env
-# 必需：GitHub API Token
+# GitHub API Token（必需）
 GITHUB_TOKEN=your_github_token
 
-# MaxKB 配置（如已部署）
-MAXKB_URL=http://localhost:8080
-MAXKB_USERNAME=admin
-MAXKB_PASSWORD=your_password
-MAXKB_KNOWLEDGE_ID=your_knowledge_id
-MAXKB_AI_URL=http://localhost:8080/api/application/{app_id}/chat/completions
-MAXKB_API_KEY=your_maxkb_api_key
-
-# 可选：DeepSeek 作为 LLM 备用
+# DeepSeek API Key（AI 功能）
 DEEPSEEK_API_KEY=your_deepseek_key
 ```
 
-### 4️⃣ 安装依赖
+#### 4️⃣ 安装依赖
 
 ```bash
 # 后端依赖
@@ -537,21 +561,29 @@ cd ../frontend
 npm install
 ```
 
-### 5️⃣ 启动服务
+</details>
+
+---
+
+### 🚀 启动服务
 
 ```bash
-# 终端 1：启动后端（端口 5000）
+# 终端 1：启动后端（端口 5001）
 cd backend
 python app.py
 
-# 终端 2：启动前端（端口 3000）
+# 终端 2：启动前端（端口 5173）
 cd frontend
 npm run dev
 ```
 
-### 6️⃣ 访问平台
+### 🌐 访问平台
 
-打开浏览器访问 **http://localhost:3000**
+| 服务 | 地址 |
+|------|------|
+| 前端界面 | http://localhost:5173 |
+| 后端 API | http://localhost:5001 |
+| MaxKB 知识库 | http://localhost:8080 |
 
 ---
 

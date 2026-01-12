@@ -14,7 +14,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 
-**[English](README.md)** · **[中文文档](README_CN.md)** · **[User Guide](使用指南（Q&A）.md)**
+**[English](README.md)** · **[中文文档](doc/README_CN.md)**
 
 </div>
 
@@ -478,54 +478,79 @@ For detailed training instructions, model architecture, and experiment results, 
 
 - Python 3.8+
 - Node.js 16+
-- Docker (for MaxKB)
-- Git LFS (for model weights)
+- Docker Desktop (for MaxKB)
+- Git (Git LFS auto-installed)
 
-### 1️⃣ Clone & Setup
+### 🎯 One-Click Setup (Recommended)
 
-```bash
-# Clone the repository
+We provide unified setup scripts that automate all configuration:
+
+**Windows PowerShell:**
+```powershell
 git clone https://github.com/your-username/OpenVista.git
 cd OpenVista
+.\setup.ps1
+```
 
-# Initialize Git LFS and pull model weights
-# Windows:
-setup.bat
-# Linux/Mac:
+**Linux / macOS:**
+```bash
+git clone https://github.com/your-username/OpenVista.git
+cd OpenVista
 chmod +x setup.sh && ./setup.sh
 ```
 
-### 2️⃣ Deploy MaxKB (Optional but Recommended)
+The setup script will automatically:
+
+| Step | Description |
+|------|-------------|
+| 📦 Git LFS | Pull model weights, training data, knowledge base |
+| 🐳 Docker | Detect installation, guide setup if needed |
+| 🤖 MaxKB | Deploy knowledge base, auto-restore data |
+| 🔑 API Keys | Configure GitHub Token & DeepSeek API Key |
+| 📚 Dependencies | Optional Python/Node.js installation |
+| 🚀 Launch Services | Auto-start backend, frontend, open browser |
+
+---
+
+### 📖 Manual Installation (Advanced)
+
+<details>
+<summary>Click to expand manual steps</summary>
+
+#### 1️⃣ Clone & Initialize
+
+```bash
+git clone https://github.com/your-username/OpenVista.git
+cd OpenVista
+
+# Pull large files (model weights, training data)
+git lfs install
+git lfs pull
+```
+
+#### 2️⃣ Deploy MaxKB
 
 ```bash
 cd maxkb-export
 chmod +x install.sh
-./install.sh
+./install.sh  # Windows: .\install.ps1
 ```
 
 Visit `http://localhost:8080` to verify MaxKB is running.
 
-### 3️⃣ Environment Configuration
+#### 3️⃣ Environment Configuration
 
-Create a `.env` file in the project root:
+Create a `.env` file in the `backend/` directory:
 
 ```env
-# Required: GitHub API Token
+# GitHub API Token (required)
 GITHUB_TOKEN=your_github_token
 
-# MaxKB Configuration (if deployed)
-MAXKB_URL=http://localhost:8080
-MAXKB_USERNAME=admin
-MAXKB_PASSWORD=your_password
-MAXKB_KNOWLEDGE_ID=your_knowledge_id
-MAXKB_AI_URL=http://localhost:8080/api/application/{app_id}/chat/completions
-MAXKB_API_KEY=your_maxkb_api_key
-
-# Optional: DeepSeek as LLM backup
+# DeepSeek API Key (for AI features)
 DEEPSEEK_API_KEY=your_deepseek_key
 ```
 
-### 4️⃣ Install Dependencies
+#### 4️⃣ Install Dependencies
 
 ```bash
 # Backend
@@ -537,21 +562,29 @@ cd ../frontend
 npm install
 ```
 
-### 5️⃣ Launch Services
+</details>
+
+---
+
+### 🚀 Launch Services
 
 ```bash
-# Terminal 1: Start Backend (port 5000)
+# Terminal 1: Start Backend (port 5001)
 cd backend
 python app.py
 
-# Terminal 2: Start Frontend (port 3000)
+# Terminal 2: Start Frontend (port 5173)
 cd frontend
 npm run dev
 ```
 
-### 6️⃣ Access the Platform
+### 🌐 Access the Platform
 
-Open your browser and navigate to **http://localhost:3000**
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:5001 |
+| MaxKB Knowledge Base | http://localhost:8080 |
 
 ---
 
