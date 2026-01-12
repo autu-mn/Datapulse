@@ -402,7 +402,7 @@ export default function ForecastChart({ repoKey, historicalData, timeAxis }: For
     // OpenRank、活跃度、关注度、总线因子 保留两位小数
     const shouldUseDecimal = metric && DECIMAL_METRICS.includes(metric)
     if (shouldUseDecimal) {
-      return value.toFixed(2)
+    return value.toFixed(2)
     }
     
     // 其他指标保留整数
@@ -1023,19 +1023,19 @@ export default function ForecastChart({ repoKey, historicalData, timeAxis }: For
         {/* 详细指标 */}
         <div className="grid grid-cols-3 gap-3">
           <div className="p-3 bg-cyber-bg/40 rounded-lg border border-cyber-border/30">
-            <div className="text-xs text-cyber-muted mb-1 font-chinese">预测周期</div>
+          <div className="text-xs text-cyber-muted mb-1 font-chinese">预测周期</div>
             <div className="text-lg font-bold text-cyber-text">
               {forecastEntries.length} <span className="text-sm font-normal text-cyber-muted">个月</span>
-            </div>
           </div>
-          
+        </div>
+        
           <div className="p-3 bg-cyber-bg/40 rounded-lg border border-cyber-border/30">
-            <div className="text-xs text-cyber-muted mb-1 font-chinese">起始预测值</div>
+          <div className="text-xs text-cyber-muted mb-1 font-chinese">起始预测值</div>
             <div className="text-lg font-bold text-cyber-secondary">
               {firstValue !== undefined ? formatValue(firstValue, selectedMetric) : '-'}
-            </div>
           </div>
-          
+        </div>
+        
           <div className="p-3 bg-cyber-bg/40 rounded-lg border border-cyber-border/30">
             <div className="text-xs text-cyber-muted mb-1 font-chinese">预测趋势</div>
             <div className={`text-lg font-bold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>

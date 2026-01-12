@@ -501,7 +501,7 @@ class DataService:
                     content = f.read()
                     try:
                         self.loaded_project_summary[repo_key] = json.loads(content)
-                        print(f"  [OK] 已加载项目 AI 摘要: {repo_key}")
+                    print(f"  [OK] 已加载项目 AI 摘要: {repo_key}")
                     except json.JSONDecodeError as je:
                         # 尝试修复常见的 JSON 问题
                         print(f"  [WARN] 项目摘要 JSON 格式错误，尝试修复: {repo_key}")
@@ -1053,11 +1053,11 @@ class DataService:
                     # 分类统计 - 使用 Issue 标题进行更精确的分类
                     categories = {'功能需求': 0, 'Bug修复': 0, '社区咨询': 0, '其他': 0}
                     
-                    # 从文本中提取 Issue 标题（格式：Issue #1234: Title）
+                        # 从文本中提取 Issue 标题（格式：Issue #1234: Title）
                     issue_entries = re.findall(r'Issue #\d+:\s*([^\n]+)', issues_text, re.IGNORECASE)
                     
                     for title in issue_entries:
-                        title_lower = title.lower()
+                            title_lower = title.lower()
                         classified = False
                         
                         # Bug 修复关键词（优先级最高）
@@ -1065,26 +1065,26 @@ class DataService:
                                        'exception', 'traceback', 'regression', 'incorrect', 
                                        '错误', '修复', '崩溃', '失败']
                         if any(kw in title_lower for kw in bug_keywords):
-                            categories['Bug修复'] += 1
+                                categories['Bug修复'] += 1
                             classified = True
                         
                         # 功能需求关键词
                         elif any(kw in title_lower for kw in ['feature', 'request', 'enhancement', 
                                                                'add support', 'implement', 'new', 
                                                                'proposal', '功能', '需求', '新增', '支持']):
-                            categories['功能需求'] += 1
+                                categories['功能需求'] += 1
                             classified = True
                         
                         # 社区咨询关键词
                         elif any(kw in title_lower for kw in ['how to', 'help', 'question', 'doc', 
                                                                'documentation', 'tutorial', 'example',
                                                                '帮助', '文档', '如何', '问题']):
-                            categories['社区咨询'] += 1
+                                categories['社区咨询'] += 1
                             classified = True
                         
                         # 未分类归入其他
                         if not classified:
-                            categories['其他'] += 1
+                                categories['其他'] += 1
                     
                     # 如果没有从标题提取到任何 Issue，尝试统计关键词
                     if not issue_entries:
@@ -1431,17 +1431,17 @@ class DataService:
                 # 回退到从文本数据计算
                 issues_data = self.get_aligned_issues(repo_key)
                 result['issueCategories'] = [
-                    {
-                        'month': month,
-                        'total': data.get('total', 0),
-                        'categories': data.get('categories', {})
-                    }
-                    for month, data in issues_data.get('monthlyData', {}).items()
-                ]
-                result['monthlyKeywords'] = {
-                    month: data.get('keywords', [])
-                    for month, data in issues_data.get('monthlyData', {}).items()
+                {
+                    'month': month,
+                    'total': data.get('total', 0),
+                    'categories': data.get('categories', {})
                 }
+                for month, data in issues_data.get('monthlyData', {}).items()
+            ]
+            result['monthlyKeywords'] = {
+                month: data.get('keywords', [])
+                for month, data in issues_data.get('monthlyData', {}).items()
+            }
         except Exception as e:
             result['issueCategories'] = []
             result['monthlyKeywords'] = {}

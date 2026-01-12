@@ -31,9 +31,48 @@ Together, these modules provide comprehensive analysis of open-source projects: 
 
 ---
 
+### 💡 The Problem We're Solving
+
+Open-source projects face numerous challenges in maintaining long-term health and sustainability. Our research, based on **4,232 GitHub repositories**, reveals critical gaps in how we understand and predict project health:
+
+#### 🔴 Current Pain Points
+
+1. **Fragmented Health Assessment**
+   - Traditional metrics (Stars, Commits) provide only partial insights
+   - No unified framework to evaluate project health holistically
+   - Hard to identify early warning signs of declining projects
+
+2. **Incomplete Prediction Models**
+   - Existing approaches rely solely on time-series metrics (R² ≈ 0.46)
+   - Ignore rich textual information (README, Issues, documentation)
+   - Cannot capture semantic signals about project direction and community engagement
+
+3. **High Collaboration Friction**
+   - Poorly written Issues increase maintenance burden
+   - Incomplete documentation barriers new contributors
+   - Lack of structured guidance for improving project health
+
+4. **Limited Actionable Insights**
+   - Raw metrics don't translate to actionable recommendations
+   - No systematic way to understand "why" a project is struggling
+   - Difficult to discover similar projects for learning and collaboration
+
+#### ✅ Our Solution
+
+**OpenVista** addresses these challenges through three innovations:
+
+1. **Multimodal Prediction** — Combining time-series metrics with textual features improves prediction accuracy by **66.7%** (R²: 0.46 → 0.77)
+2. **CHAOSS-Based Health Scoring** — Six-dimensional framework providing comprehensive health assessment
+3. **Intelligent Q&A** — RAG-powered knowledge base enabling natural language queries about any repository
+
+Our platform transforms raw data into actionable intelligence, helping maintainers, contributors, and organizations make data-driven decisions about open-source projects.
+
+---
+
 ## 📑 Table of Contents
 
 - [🌟 Overview](#-overview)
+  - [💡 The Problem We're Solving](#-the-problem-were-solving)
 - [🛠️ Tech Stack](#️-tech-stack)
 - [📁 Project Structure](#-project-structure)
 - [🤖 MaxKB Intelligent Q&A System](#-maxkb-intelligent-qa-system)
@@ -51,6 +90,7 @@ Together, these modules provide comprehensive analysis of open-source projects: 
 - [📖 Usage Guide](#-usage-guide)
 - [🤝 Contributing](#-contributing)
 - [📄 License](#-license)
+- [📢 Community Initiative](#-community-initiative)
 - [🙏 Acknowledgments](#-acknowledgments)
 
 ---
@@ -616,6 +656,21 @@ We welcome contributions! Please follow these steps:
 ## 📄 License
 
 This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
+
+---
+
+## 📢 Community Initiative
+
+Based on our research findings, we have published a **Community Practice Initiative** that calls for the open-source ecosystem to prioritize text information quality (documentation, Issue descriptions, etc.) as a core component of project governance.
+
+**Key Message**: Well-written documentation and structured Issue templates are not optional—they are essential for project sustainability and, in the AI era, critical for lowering contribution barriers. When combined with AI technologies (RAG-based Q&A, intelligent code assistants), high-quality text information can dramatically reduce the onboarding cost for new contributors.
+
+📖 **Read the full initiative**: [doc/倡议书/倡议书.md](doc/倡议书/倡议书.md) (Chinese)
+
+The initiative includes:
+- Empirical findings from 600+ GitHub projects
+- Practical recommendations for maintainers, contributors, organizations, and platform developers
+- Emphasis on AI-assisted collaboration and knowledge management
 
 ---
 
