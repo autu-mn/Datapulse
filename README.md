@@ -69,7 +69,7 @@ Our platform transforms raw data into actionable intelligence, helping maintaine
 
 ---
 
-## 📑 Table of Contents
+## 📑 Table of Content
 
 - [🌟 Overview](#-overview)
   - [💡 The Problem We're Solving](#-the-problem-were-solving)
