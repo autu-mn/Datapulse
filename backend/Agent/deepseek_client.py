@@ -7,8 +7,19 @@ import os
 from typing import Optional
 from dotenv import load_dotenv
 
-# 加载环境变量
-load_dotenv()
+# 使用统一的环境变量加载工具
+try:
+    from utils.env_loader import ensure_env_loaded
+    ensure_env_loaded()
+except ImportError:
+    # 如果 utils 模块不可用，使用简单方式加载
+    from pathlib import Path
+    project_root = Path(__file__).resolve().parent.parent.parent
+    env_file = project_root / '.env'
+    if env_file.exists():
+        load_dotenv(env_file, override=True)
+    else:
+        load_dotenv(override=True)
 
 # 尝试导入 openai 库（DeepSeek 兼容 OpenAI API）
 try:
@@ -29,6 +40,13 @@ class DeepSeekClient:
             api_key: DeepSeek API Key，默认从环境变量读取
             model: 模型名称，默认 deepseek-chat
         """
+        # 环境变量已在模块级别加载，这里只是确保（静默模式）
+        try:
+            from utils.env_loader import ensure_env_loaded
+            ensure_env_loaded(silent=True)
+        except ImportError:
+            pass  # 模块级别已加载
+        
         self.api_key = api_key or os.getenv('DEEPSEEK_API_KEY') or os.getenv('DEEPSEEK_KEY')
         self.model = model
         self.base_url = "https://api.deepseek.com"

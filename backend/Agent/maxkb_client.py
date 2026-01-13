@@ -14,19 +14,29 @@ from dotenv import load_dotenv
 def find_dotenv():
     """向上查找 .env 文件"""
     current = Path(__file__).resolve().parent
-    for _ in range(5):  # 最多向上查找5层
+    for i in range(5):  # 最多向上查找5层
         env_file = current / '.env'
         if env_file.exists():
             return str(env_file)
         current = current.parent
     return None
 
-# 加载 .env 文件
-env_path = find_dotenv()
-if env_path:
-    load_dotenv(env_path)
-else:
-    load_dotenv()  # 尝试默认加载
+# 使用统一的环境变量加载工具
+try:
+    from utils.env_loader import ensure_env_loaded
+    ensure_env_loaded()
+except ImportError:
+    # 如果 utils 模块不可用，使用简单方式加载
+    env_path = find_dotenv()
+    if env_path:
+        load_dotenv(env_path, override=True)
+    else:
+        project_root = Path(__file__).resolve().parent.parent.parent
+        env_file = project_root / '.env'
+        if env_file.exists():
+            load_dotenv(env_file, override=True)
+        else:
+            load_dotenv(override=True)
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +56,21 @@ class MaxKBClient:
             base_url: MaxKB 服务地址
             api_key: 应用访问密钥
         """
+        # 环境变量已在模块级别加载，这里只是确保（静默模式）
+        try:
+            from utils.env_loader import ensure_env_loaded
+            ensure_env_loaded(silent=True)
+        except ImportError:
+            pass  # 模块级别已加载
+        
         # 获取环境变量（支持多种命名）
         # 优先使用 MAXKB_URL（纯服务器地址），因为 MAXKB_AI_URL 可能包含应用路径
         raw_url = base_url or os.getenv('MAXKB_URL', '') or os.getenv('MAXKB_AI_URL', '')
         self.api_key = api_key or os.getenv('MAXKB_API_KEY', '') or os.getenv('MAXKB_AI_API_KEY', '') or os.getenv('MAXKB_AI_KEY', '')
+        
+        # 调试信息
+        if not raw_url or not self.api_key:
+            logger.debug(f"[MaxKB] 环境变量检查: MAXKB_URL={os.getenv('MAXKB_URL')}, MAXKB_AI_URL={os.getenv('MAXKB_AI_URL')}, MAXKB_API_KEY={os.getenv('MAXKB_API_KEY')}")
         
         # 从 URL 中提取纯服务器地址（去除 /chat/api/... 路径）
         # 例如：http://localhost:8080/chat/api/xxx -> http://localhost:8080

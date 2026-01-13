@@ -12,6 +12,34 @@ import os
 from datetime import datetime
 from collections import defaultdict
 import re
+# 使用统一的环境变量加载工具
+try:
+    from utils.env_loader import ensure_env_loaded
+    from pathlib import Path
+    ensure_env_loaded()
+    # 显示实际加载的 .env 文件路径
+    project_root = Path(__file__).resolve().parent.parent
+    env_file = project_root / '.env'
+    if env_file.exists():
+        print(f"[INFO] 已加载 .env 文件: {env_file}")
+    else:
+        print(f"[WARN] 未找到 .env 文件: {env_file}")
+except ImportError:
+    # 如果 utils 模块不可用，使用简单方式加载
+    from dotenv import load_dotenv, find_dotenv
+    env_path = find_dotenv()
+    if env_path:
+        load_dotenv(env_path, override=True)
+        print(f"[INFO] 已加载 .env 文件: {env_path}")
+    else:
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        env_file = os.path.join(project_root, '.env')
+        if os.path.exists(env_file):
+            load_dotenv(env_file, override=True)
+            print(f"[INFO] 已加载 .env 文件: {env_file}")
+        else:
+            print(f"[WARN] 未找到 .env 文件，请确保在项目根目录创建 .env 文件")
+
 from data_service import DataService
 from Agent.qa_agent import QAAgent
 from Agent.prediction_explainer import PredictionExplainer
@@ -2101,12 +2129,16 @@ if __name__ == '__main__':
     logger.info(f"  数据目录: {os.path.join(os.path.dirname(__file__), 'DataProcessor', 'data')}")
     
     # 检查环境变量配置
-    has_maxkb = bool(os.getenv('MAXKB_AI_API'))
+    # MaxKB 需要 URL 和 API_KEY 两个变量
+    has_maxkb_url = bool(os.getenv('MAXKB_URL') or os.getenv('MAXKB_AI_URL'))
+    has_maxkb_key = bool(os.getenv('MAXKB_API_KEY') or os.getenv('MAXKB_AI_API_KEY') or os.getenv('MAXKB_AI_KEY'))
+    has_maxkb = has_maxkb_url and has_maxkb_key
     has_deepseek = bool(os.getenv('DEEPSEEK_API_KEY') or os.getenv('DEEPSEEK_KEY'))
     has_github = bool(os.getenv('GITHUB_TOKEN'))
     
     logger.info("[API 配置]")
-    logger.info(f"  MAXKB_AI_API: {'已配置 ✓' if has_maxkb else '未配置'}")
+    logger.info(f"  MaxKB URL: {'已配置 ✓' if has_maxkb_url else '未配置'}")
+    logger.info(f"  MaxKB API Key: {'已配置 ✓' if has_maxkb_key else '未配置'}")
     logger.info(f"  DEEPSEEK_API_KEY: {'已配置 ✓' if has_deepseek else '未配置'}")
     logger.info(f"  GITHUB_TOKEN: {'已配置 ✓' if has_github else '未配置'}")
     
@@ -2160,4 +2192,5 @@ if __name__ == '__main__':
     print("日志文件: backend/logs/openvista.log")
     print("="*60 + "\n")
     
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    # 禁用 reloader 避免连接中断，但保持调试器可用
+    app.run(debug=True, port=5000, host='0.0.0.0', use_reloader=False)
