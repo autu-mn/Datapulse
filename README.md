@@ -1,68 +1,27 @@
 <style>
-/* 标签页切换样式 */
-.lang-switcher {
-  margin: 20px 0;
-}
-.lang-tabs {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin: 20px 0;
-}
-.lang-tab {
-  display: inline-block;
-  padding: 8px 20px;
-  background-color: #f6f8fa;
-  border: 1px solid #d1d9e0;
-  border-radius: 6px;
-  cursor: pointer;
-  text-decoration: none;
-  color: #24292f;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-.lang-tab:hover {
-  background-color: #e7ebef;
-  border-color: #afb8c1;
-}
-.lang-content {
-  display: none;
-}
-/* 默认显示英文内容 */
-.lang-content-wrapper #lang-en-content {
-  display: block;
-}
-/* 英文选中时的样式 */
-#lang-en-radio:checked ~ .lang-tabs label[for="lang-en-radio"] {
-  background-color: #0969da;
-  color: white;
-  border-color: #0969da;
-}
-#lang-en-radio:checked ~ .lang-content-wrapper #lang-en-content {
-  display: block;
-}
-#lang-en-radio:checked ~ .lang-content-wrapper #lang-cn-content {
-  display: none;
-}
-/* 中文选中时的样式 */
-#lang-cn-radio:checked ~ .lang-tabs label[for="lang-cn-radio"] {
-  background-color: #0969da;
-  color: white;
-  border-color: #0969da;
-}
-#lang-cn-radio:checked ~ .lang-content-wrapper #lang-cn-content {
-  display: block;
-}
-#lang-cn-radio:checked ~ .lang-content-wrapper #lang-en-content {
-  display: none;
-}
-/* 默认选中英文标签页（因为 lang-en-radio 默认 checked） */
-.lang-tabs label[for="lang-en-radio"] {
-  background-color: #0969da;
-  color: white;
-  border-color: #0969da;
-}
+input[name="lang"] { display: none; }
+#lang-en-content { display: block; }
+#lang-cn-content { display: none; }
+#lang-en:checked ~ #lang-en-content { display: block !important; }
+#lang-en:checked ~ #lang-cn-content { display: none !important; }
+#lang-cn:checked ~ #lang-cn-content { display: block !important; }
+#lang-cn:checked ~ #lang-en-content { display: none !important; }
+#lang-en-content label[for="lang-en"] { color: #0969da; text-decoration: underline; }
+#lang-en-content label[for="lang-cn"] { color: #656d76; text-decoration: none; }
+#lang-cn-content label[for="lang-cn"] { color: #0969da; text-decoration: underline; }
+#lang-cn-content label[for="lang-en"] { color: #656d76; text-decoration: none; }
+#lang-en:checked ~ #lang-en-content label[for="lang-en"] { color: #0969da !important; text-decoration: underline !important; }
+#lang-en:checked ~ #lang-en-content label[for="lang-cn"] { color: #656d76 !important; text-decoration: none !important; }
+#lang-cn:checked ~ #lang-cn-content label[for="lang-cn"] { color: #0969da !important; text-decoration: underline !important; }
+#lang-cn:checked ~ #lang-cn-content label[for="lang-en"] { color: #656d76 !important; text-decoration: none !important; }
 </style>
+
+<!-- 语言切换 radio buttons -->
+<input type="radio" id="lang-en" name="lang" checked>
+<input type="radio" id="lang-cn" name="lang">
+
+<!-- 英文内容 -->
+<div id="lang-en-content" class="lang-content">
 
 <div align="center">
 
@@ -80,22 +39,13 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 
+<br/>
+
+<label for="lang-en" style="color: #0969da; text-decoration: underline; cursor: pointer; margin: 0 10px;">English</label>
+<span style="color: #656d76;">·</span>
+<label for="lang-cn" style="color: #656d76; cursor: pointer; margin: 0 10px;">中文文档</label>
+
 </div>
-
-<!-- 语言切换标签页 -->
-<div class="lang-switcher">
-  <input type="radio" id="lang-en-radio" name="lang" checked style="display: none;">
-  <input type="radio" id="lang-cn-radio" name="lang" style="display: none;">
-  
-  <div class="lang-tabs">
-    <label for="lang-en-radio" class="lang-tab">English</label>
-    <label for="lang-cn-radio" class="lang-tab">中文文档</label>
-  </div>
-  
-  <div class="lang-content-wrapper">
-
-<!-- 英文内容 -->
-<div id="lang-en-content" class="lang-content">
 
 ---
 
@@ -796,6 +746,12 @@ The initiative includes:
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 
+<br/>
+
+<label for="lang-en" style="color: #656d76; cursor: pointer; margin: 0 10px;">English</label>
+<span style="color: #656d76;">·</span>
+<label for="lang-cn" style="color: #0969da; text-decoration: underline; cursor: pointer; margin: 0 10px;">中文文档</label>
+
 </div>
 
 ---
@@ -1473,11 +1429,4 @@ npm run dev
 *用预测智能赋能开源社区*
 
 </div>
-
-</div>
 <!-- 中文内容结束 -->
-
-  </div>
-  <!-- lang-content-wrapper 结束 -->
-</div>
-<!-- lang-switcher 结束 -->
