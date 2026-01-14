@@ -1,5 +1,10 @@
 <div align="center">
 
+**[English](README.md)** · **[中文文档](README_CN.md)**
+
+<br/>
+
+
 # 🔮 OpenVista
 
 ### Multimodal Time-Series Prediction Platform for GitHub Repository Health
@@ -14,9 +19,10 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 
-**[English](README.md)** · **[中文文档](doc/README_CN.md)**
+<br/>
 
 </div>
+<!-- 英文内容 -->
 
 ---
 
@@ -24,8 +30,8 @@
 
 **OpenVista** is a next-generation platform for analyzing and predicting the health of open-source GitHub repositories. The platform integrates two core capabilities:
 
-1. **🤖 MaxKB Intelligent Q&A System** — RAG-based knowledge base for project documentation
-2. **🔮 GitPulse Multimodal Prediction Model** — Intelligent forecasting combining time-series and text
+1. **🤖 MaxKB Intelligent Q&A System** �?RAG-based knowledge base for project documentation
+2. **🔮 GitPulse Multimodal Prediction Model** �?Intelligent forecasting combining time-series and text
 
 Together, these modules provide comprehensive analysis of open-source projects: past, present, and future.
 
@@ -43,7 +49,7 @@ Open-source projects face numerous challenges in maintaining long-term health an
    - Hard to identify early warning signs of declining projects
 
 2. **Incomplete Prediction Models**
-   - Existing approaches rely solely on time-series metrics (R² ≈ 0.46)
+   - Existing approaches rely solely on time-series metrics (R² �?0.46)
    - Ignore rich textual information (README, Issues, documentation)
    - Cannot capture semantic signals about project direction and community engagement
 
@@ -57,13 +63,13 @@ Open-source projects face numerous challenges in maintaining long-term health an
    - No systematic way to understand "why" a project is struggling
    - Difficult to discover similar projects for learning and collaboration
 
-#### ✅ Our Solution
+#### �?Our Solution
 
 **OpenVista** addresses these challenges through three innovations:
 
-1. **Multimodal Prediction** — Combining time-series metrics with textual features improves prediction accuracy by **66.7%** (R²: 0.46 → 0.77)
-2. **CHAOSS-Based Health Scoring** — Six-dimensional framework providing comprehensive health assessment
-3. **Intelligent Q&A** — RAG-powered knowledge base enabling natural language queries about any repository
+1. **Multimodal Prediction** �?Combining time-series metrics with textual features improves prediction accuracy by **66.7%** (R²: 0.46 �?0.77)
+2. **CHAOSS-Based Health Scoring** �?Six-dimensional framework providing comprehensive health assessment
+3. **Intelligent Q&A** �?RAG-powered knowledge base enabling natural language queries about any repository
 
 Our platform transforms raw data into actionable intelligence, helping maintainers, contributors, and organizations make data-driven decisions about open-source projects.
 
@@ -73,7 +79,7 @@ Our platform transforms raw data into actionable intelligence, helping maintaine
 
 - [🌟 Overview](#-overview)
   - [💡 The Problem We're Solving](#-the-problem-were-solving)
-- [🛠️ Tech Stack](#️-tech-stack)
+- [🛠�?Tech Stack](#�?tech-stack)
 - [📁 Project Structure](#-project-structure)
 - [🤖 MaxKB Intelligent Q&A System](#-maxkb-intelligent-qa-system)
   - [System Architecture](#system-architecture)
@@ -85,7 +91,7 @@ Our platform transforms raw data into actionable intelligence, helping maintaine
   - [Architecture Highlights](#architecture-highlights)
   - [Two-Stage Training](#two-stage-training)
   - [Reproducing GitPulse Model](#reproducing-gitpulse-model)
-- [✨ Feature Gallery](#-feature-gallery)
+- [�?Feature Gallery](#-feature-gallery)
 - [🚀 Quick Start](#-quick-start)
 - [📖 Usage Guide](#-usage-guide)
 - [🤝 Contributing](#-contributing)
@@ -95,10 +101,10 @@ Our platform transforms raw data into actionable intelligence, helping maintaine
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠�?Tech Stack
 
 <div align="center">
-<img src="image/技术架构.png" alt="Tech Architecture" width="700"/>
+<img src="image/技术架�?png" alt="Tech Architecture" width="700"/>
 </div>
 
 <table>
@@ -148,45 +154,45 @@ Our platform transforms raw data into actionable intelligence, helping maintaine
 ```
 OpenVista/
 ├── 🔧 backend/                     # Flask Backend
-│   ├── Agent/                      # AI & MaxKB Integration
-│   │   ├── maxkb_client.py         # MaxKB Knowledge Base Client
-│   │   ├── prediction_explainer.py # AI Prediction Explainer
-│   │   └── qa_agent.py             # Intelligent Q&A Agent
-│   │
-│   ├── DataProcessor/              # Data Crawling & Processing
-│   │   ├── crawl_monthly_data.py   # Main Crawler Entry
-│   │   ├── github_text_crawler.py  # GitHub Text Crawler
-│   │   ├── maxkb_uploader.py       # MaxKB Document Uploader
-│   │   └── monthly_crawler.py      # OpenDigger Data Crawler
-│   │
-│   ├── GitPulse/                   # GitPulse Prediction Model
-│   │   ├── model.py                # Model Architecture
-│   │   ├── prediction_service.py   # Prediction Service
-│   │   └── gitpulse_weights.pt     # Trained Model Weights (LFS)
-│   │
-│   ├── CHAOSSEvaluation/           # Community Health Scoring
-│   │   └── chaoss_calculator.py    # CHAOSS Metric Calculator
-│   │
-│   └── app.py                      # Flask API Entry Point
-│
+�?  ├── Agent/                      # AI & MaxKB Integration
+�?  �?  ├── maxkb_client.py         # MaxKB Knowledge Base Client
+�?  �?  ├── prediction_explainer.py # AI Prediction Explainer
+�?  �?  └── qa_agent.py             # Intelligent Q&A Agent
+�?  �?
+�?  ├── DataProcessor/              # Data Crawling & Processing
+�?  �?  ├── crawl_monthly_data.py   # Main Crawler Entry
+�?  �?  ├── github_text_crawler.py  # GitHub Text Crawler
+�?  �?  ├── maxkb_uploader.py       # MaxKB Document Uploader
+�?  �?  └── monthly_crawler.py      # OpenDigger Data Crawler
+�?  �?
+�?  ├── GitPulse/                   # GitPulse Prediction Model
+�?  �?  ├── model.py                # Model Architecture
+�?  �?  ├── prediction_service.py   # Prediction Service
+�?  �?  └── gitpulse_weights.pt     # Trained Model Weights (LFS)
+�?  �?
+�?  ├── CHAOSSEvaluation/           # Community Health Scoring
+�?  �?  └── chaoss_calculator.py    # CHAOSS Metric Calculator
+�?  �?
+�?  └── app.py                      # Flask API Entry Point
+�?
 ├── 🎨 frontend/                    # React Frontend
-│
+�?
 ├── 📊 get-dataset/                 # Training Dataset Generator
-│
+�?
 ├── 🔬 GitPulse-Training/          # GitPulse Model Training & Reproduction
-│   ├── model/                     # Model Architecture Definitions
-│   ├── training/                  # Training Scripts
-│   ├── Fine-tuning/               # Fine-tuning Experiments
-│   ├── predict/                   # Prediction Scripts
-│   ├── ablation-test/             # Ablation Studies
-│   ├── baseline-test/             # Baseline Comparisons
-│   └── Pretrain-data/             # Training Dataset
-│
+�?  ├── model/                     # Model Architecture Definitions
+�?  ├── training/                  # Training Scripts
+�?  ├── Fine-tuning/               # Fine-tuning Experiments
+�?  ├── predict/                   # Prediction Scripts
+�?  ├── ablation-test/             # Ablation Studies
+�?  ├── baseline-test/             # Baseline Comparisons
+�?  └── Pretrain-data/             # Training Dataset
+�?
 ├── 🐳 maxkb-export/                # MaxKB Deployment Config
-│   ├── install.sh                  # One-click Install Script
-│   ├── docker-compose.yml          # Docker Compose File
-│   └── db/                         # Database Backup
-│
+�?  ├── install.sh                  # One-click Install Script
+�?  ├── docker-compose.yml          # Docker Compose File
+�?  └── db/                         # Database Backup
+�?
 └── 📄 README.md
 ```
 
@@ -195,7 +201,7 @@ OpenVista/
 ## 🤖 MaxKB Intelligent Q&A System
 
 <div align="center">
-<img src="image/MaxKB知识库.png" alt="MaxKB Knowledge Base" width="700"/>
+<img src="image/MaxKB知识�?png" alt="MaxKB Knowledge Base" width="700"/>
 </div>
 
 ### System Architecture
@@ -203,7 +209,7 @@ OpenVista/
 MaxKB is the **AI Q&A core** of OpenVista, using **RAG (Retrieval-Augmented Generation)** technology to enable natural language questions about any analyzed repository.
 
 ```
-User Question → MaxKB Retrieves from Knowledge Base → LLM Generates Answer → Response
+User Question �?MaxKB Retrieves from Knowledge Base �?LLM Generates Answer �?Response
 ```
 
 ### Knowledge Base Contents
@@ -285,11 +291,11 @@ MAXKB_API_KEY=your_maxkb_api_key
 <img src="image/不同方法在测试集上的性能对比.png" alt="Performance Comparison" width="800"/>
 </div>
 
-Evaluated on **636 test samples** from **4,232 samples（Generated from 600+ projects）** (Two-stage training: Pretrain + Fine-tune):
+Evaluated on **636 test samples** from **4,232 samples（Generated from 600+ projects�?* (Two-stage training: Pretrain + Fine-tune):
 
 <div align="center">
 
-| Model | MSE ↓ | MAE ↓ | R² ↑ | DA ↑ | TA@0.2 ↑ |
+| Model | MSE �?| MAE �?| R² �?| DA �?| TA@0.2 �?|
 |:------|:-----:|:-----:|:----:|:----:|:--------:|
 | **GitPulse (Transformer+Text)** | **0.0712** | **0.1075** | **0.77** | **73.00%** | **81.75%** |
 | CondGRU+Text | 0.0949 | 0.1243 | 0.69 | 68.56% | 79.55% |
@@ -302,7 +308,7 @@ Evaluated on **636 test samples** from **4,232 samples（Generated from 600+ pro
 
 </div>
 
-> **Text Contribution**: Adding text features improves R² from 0.46 → 0.77 (**+66.7%**)
+> **Text Contribution**: Adding text features improves R² from 0.46 �?0.77 (**+66.7%**)
 
 ### Model Overview
 
@@ -403,19 +409,19 @@ python finetune_all_v4_1.py \
 ```
 GitPulse-Training/
 ├── model/                          # Model architecture definitions
-│   └── multimodal_ts_v4_1.py      # Transformer+Text model
+�?  └── multimodal_ts_v4_1.py      # Transformer+Text model
 ├── training/                       # Training scripts
-│   ├── train_multimodal_v4_1.py   # Main training script
-│   └── checkpoints/               # Saved model weights
+�?  ├── train_multimodal_v4_1.py   # Main training script
+�?  └── checkpoints/               # Saved model weights
 ├── Fine-tuning/                   # Fine-tuning experiments
-│   └── results/                   # Fine-tuned models
+�?  └── results/                   # Fine-tuned models
 ├── predict/                       # Prediction scripts
-│   └── predict_single_repo.py    # Single repository prediction
+�?  └── predict_single_repo.py    # Single repository prediction
 ├── ablation-test/                 # Ablation studies
 ├── baseline-test/                 # Baseline comparisons
 ├── merge-test/                    # Fusion method comparisons
 ├── Pretrain-data/                 # Training dataset
-│   └── github_multivar.json      # Multi-variable time-series data
+�?  └── github_multivar.json      # Multi-variable time-series data
 ├── evaluate_all_models.py         # Unified evaluation script
 └── README.md                      # Detailed training guide
 ```
@@ -431,7 +437,7 @@ For detailed training instructions, model architecture, and experiment results, 
 
 ---
 
-## ✨ Feature Gallery
+## �?Feature Gallery
 
 ### Key Features
 
@@ -442,7 +448,7 @@ For detailed training instructions, model architecture, and experiment results, 
 | 📊 **CHAOSS Evaluation** | Community health assessment with 6-dimension radar visualization |
 | 🔍 **Similar Repo Discovery** | Find related projects via GitHub API-based similarity matching |
 | 📈 **Interactive Visualization** | Beautiful charts with 60+ months historical data comparison |
-| ⚡ **Real-time Crawling** | Fetch any GitHub repository data on demand |
+| �?**Real-time Crawling** | Fetch any GitHub repository data on demand |
 
 <details>
 <summary><b>🔮 Intelligent Prediction</b> - 12-month forecasting with historical comparison</summary>
@@ -454,7 +460,7 @@ For detailed training instructions, model architecture, and experiment results, 
 **AI-Powered Prediction Explanation:**
 
 <div align="center">
-<img src="image/issue预测解释图.png" alt="AI Prediction Explanation" width="800"/>
+<img src="image/issue预测解释�?png" alt="AI Prediction Explanation" width="800"/>
 </div>
 
 </details>
@@ -490,13 +496,13 @@ For detailed training instructions, model architecture, and experiment results, 
 <summary><b>🐛 Issue Analysis</b> - Intelligent classification and trend analysis</summary>
 
 <div align="center">
-<img src="image/issue分析（2）.png" alt="Issue Analysis" width="800"/>
+<img src="image/issue分析�?�?png" alt="Issue Analysis" width="800"/>
 </div>
 
 **Classification Statistics:**
 
 <div align="center">
-<img src="image/issue分析（1）.png" alt="Issue Classification" width="800"/>
+<img src="image/issue分析�?�?png" alt="Issue Classification" width="800"/>
 </div>
 
 </details>
@@ -505,7 +511,7 @@ For detailed training instructions, model architecture, and experiment results, 
 <summary><b>📖 Built-in Documentation</b> - Technical documentation and API reference</summary>
 
 <div align="center">
-<img src="image/技术文档.png" alt="Technical Documentation" width="800"/>
+<img src="image/技术文�?png" alt="Technical Documentation" width="800"/>
 </div>
 
 </details>
@@ -632,12 +638,12 @@ npm run dev
 
 ### Basic Workflow
 
-1. **🔍 Search Repository** — Enter `owner/repo` (e.g., `facebook/react`)
-2. **⏳ Wait for Crawling** — Data fetched from GitHub API & OpenDigger
-3. **📊 Explore Analytics** — View time-series charts, Issue analysis
-4. **🔮 Check Predictions** — See 12-month forecasts with AI explanations
-5. **📈 CHAOSS Evaluation** — Assess community health scores
-6. **🤖 AI Q&A** — Use MaxKB to ask questions about the repository
+1. **🔍 Search Repository** �?Enter `owner/repo` (e.g., `facebook/react`)
+2. **�?Wait for Crawling** �?Data fetched from GitHub API & OpenDigger
+3. **📊 Explore Analytics** �?View time-series charts, Issue analysis
+4. **🔮 Check Predictions** �?See 12-month forecasts with AI explanations
+5. **📈 CHAOSS Evaluation** �?Assess community health scores
+6. **🤖 AI Q&A** �?Use MaxKB to ask questions about the repository
 
 ---
 
@@ -665,7 +671,7 @@ Based on our research findings, we have published a **Community Practice Initiat
 
 **Key Message**: Well-written documentation and structured Issue templates are not optional—they are essential for project sustainability and, in the AI era, critical for lowering contribution barriers. When combined with AI technologies (RAG-based Q&A, intelligent code assistants), high-quality text information can dramatically reduce the onboarding cost for new contributors.
 
-📖 **Read the full initiative**: [doc/倡议书/倡议书.md](doc/倡议书/倡议书.md) (Chinese)
+📖 **Read the full initiative**: [doc/倡议�?倡议�?md](doc/倡议�?倡议�?md) (Chinese)
 
 The initiative includes:
 - Empirical findings from 600+ GitHub projects
@@ -676,16 +682,16 @@ The initiative includes:
 
 ## 🙏 Acknowledgments
 
-- [MaxKB](https://github.com/1Panel-dev/MaxKB) — RAG Knowledge Base System
-- [OpenDigger](https://github.com/X-lab2017/open-digger) — Time-series metrics data
-- [CHAOSS](https://chaoss.community/) — Community health metrics framework
-- [GitHub API](https://docs.github.com/en/rest) — Repository data source
+- [MaxKB](https://github.com/1Panel-dev/MaxKB) �?RAG Knowledge Base System
+- [OpenDigger](https://github.com/X-lab2017/open-digger) �?Time-series metrics data
+- [CHAOSS](https://chaoss.community/) �?Community health metrics framework
+- [GitHub API](https://docs.github.com/en/rest) �?Repository data source
 
 ---
 
 <div align="center">
 
-### ⭐ Star this repo if you find it useful! ⭐
+### �?Star this repo if you find it useful! �?
 
 <br/>
 
