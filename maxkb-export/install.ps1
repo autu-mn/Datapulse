@@ -5,7 +5,7 @@
 $ErrorActionPreference = "Continue"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BackupFile = "$ScriptDir\db\maxkb_full.dump"
-$MaxKBImage = "registry.fit2cloud.com/maxkb/maxkb"
+$MaxKBImage = "registry.fit2cloud.com/maxkb/maxkb:v2.3.1"
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan

@@ -15,14 +15,14 @@ echo ""
 BACKEND_RUNNING=false
 FRONTEND_RUNNING=false
 
-if curl -s http://localhost:5001 > /dev/null 2>&1; then
+if curl -s http://localhost:5000 > /dev/null 2>&1; then
     BACKEND_RUNNING=true
     echo "  [OK] Backend is running"
 else
     echo "  [ ] Backend not running"
 fi
 
-if curl -s http://localhost:5173 > /dev/null 2>&1; then
+if curl -s http://localhost:3000 > /dev/null 2>&1; then
     FRONTEND_RUNNING=true
     echo "  [OK] Frontend is running"
 else
@@ -37,9 +37,9 @@ if [ "$BACKEND_RUNNING" = true ] && [ "$FRONTEND_RUNNING" = true ]; then
     echo "  Opening browser..."
     
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        open "http://localhost:5173"
+        open "http://localhost:3000"
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        xdg-open "http://localhost:5173" 2>/dev/null || echo "  Please open http://localhost:5173 in your browser"
+        xdg-open "http://localhost:3000" 2>/dev/null || echo "  Please open http://localhost:3000 in your browser"
     fi
     exit 0
 fi
@@ -73,15 +73,15 @@ echo ""
 echo "  Opening browser..."
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    open "http://localhost:5173"
+    open "http://localhost:3000"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    xdg-open "http://localhost:5173" 2>/dev/null || echo "  Please open http://localhost:5173 in your browser"
+    xdg-open "http://localhost:3000" 2>/dev/null || echo "  Please open http://localhost:3000 in your browser"
 fi
 
 echo ""
 echo "  Service URLs:"
-echo "    Frontend:  http://localhost:5173"
-echo "    Backend:   http://localhost:5001"
+echo "    Frontend:  http://localhost:3000"
+echo "    Backend:   http://localhost:5000"
 echo "    MaxKB:     http://localhost:8080"
 echo ""
 

@@ -2,7 +2,7 @@ name: openvista
 
 services:
   maxkb:
-    image: 1panel/maxkb:latest
+    image: registry.fit2cloud.com/maxkb/maxkb:v2.3.1
     container_name: openvista-maxkb
     ports:
       - "8080:8080"

@@ -92,6 +92,10 @@ Our platform transforms raw data into actionable intelligence, helping maintaine
       - [Option 1: Use Pre-configured Knowledge Base (Recommended)](#option-1-use-pre-configured-knowledge-base-recommended)
       - [Option 2: Fresh Installation](#option-2-fresh-installation)
       - [Configure .env File](#configure-env-file)
+    - [How to Get MaxKB API Configuration Values](#how-to-get-maxkb-api-configuration-values)
+      - [1. MAXKB\_KNOWLEDGE\_ID](#1-maxkb_knowledge_id)
+      - [2. MAXKB\_AI\_URL](#2-maxkb_ai_url)
+      - [3. MAXKB\_API\_KEY](#3-maxkb_api_key)
     - [Usage](#usage)
   - [🔬 GitPulse Prediction Model](#-gitpulse-prediction-model)
     - [Model Performance](#model-performance)
@@ -263,6 +267,15 @@ The system automatically builds a knowledge base for each analyzed repository:
 
 #### Option 1: Use Pre-configured Knowledge Base (Recommended)
 
+**Windows PowerShell:**
+```powershell
+cd maxkb-export
+
+# One-click install (includes database backup restoration)
+.\install.ps1
+```
+
+**Linux / macOS:**
 ```bash
 cd maxkb-export
 
@@ -270,6 +283,8 @@ cd maxkb-export
 chmod +x install.sh
 ./install.sh
 ```
+
+> **Note**: `chmod +x` is a Linux/Unix command that makes the script executable. Windows users should use `install.ps1` instead.
 
 The installation script will automatically:
 - Pull MaxKB Docker image
@@ -285,6 +300,8 @@ docker-compose -f docker-compose.maxkb.yml up -d
 
 #### Configure .env File
 
+Create a `.env` file in the project root directory with the following configuration:
+
 ```env
 # MaxKB Service Configuration
 MAXKB_URL=http://localhost:8080
@@ -293,9 +310,68 @@ MAXKB_PASSWORD=your_password
 MAXKB_KNOWLEDGE_ID=your_knowledge_id
 
 # MaxKB AI API (for Q&A)
-MAXKB_AI_URL=http://localhost:8080/api/application/{app_id}/chat/completions
-MAXKB_API_KEY=your_maxkb_api_key
+MAXKB_AI_URL=http://localhost:8080/chat/api/019adeb1-9073-7320-bce2-295...
+MAXKB_API_KEY=application-c527aa669276e38ab7880b1f43255c9a
 ```
+
+<details>
+<summary>📖 Click to expand: How to get MaxKB API configuration values</summary>
+
+### How to Get MaxKB API Configuration Values
+
+After installing MaxKB, you need to configure the following values in your `.env` file:
+
+#### 1. MAXKB_KNOWLEDGE_ID
+
+**Steps to get Knowledge Base ID:**
+
+1. Log in to MaxKB at `http://localhost:8080`
+2. Navigate to **知识库** (Knowledge Base) in the top menu
+3. Create a new knowledge base or select an existing one
+4. Click into the knowledge base to view its documents
+5. Look at the URL in your browser. It will look like:
+   ```
+   http://localhost:8080/admin/knowledge/019ae417-2fc017ed1652/default/document
+   ```
+6. The Knowledge Base ID is the part between `/knowledge/` and `/default/`:
+   - In the example above: `019ae417-2fc017ed1652`
+   - Copy this ID and use it as `MAXKB_KNOWLEDGE_ID`
+
+![Knowledge Base ID Location](image/MAXKB_KNOWLEDGE_ID.png)
+
+#### 2. MAXKB_AI_URL
+
+**Steps to get API Base URL:**
+
+1. In MaxKB, navigate to **应用** (Application) in the top menu
+2. Create a new application or select an existing one
+3. On the application overview page, find the **API 访问凭据** (API Access Credentials) section
+4. Copy the **Base URL** value, for example:
+   ```
+   http://localhost:8080/chat/api/019adeb1-9073-7320-bce2-295...
+   ```
+5. Use this as your `MAXKB_AI_URL` value
+
+![API Base URL Location](image/MAXKB_AI_URL.png)
+
+#### 3. MAXKB_API_KEY
+
+**Steps to create API Key:**
+
+1. On the same application overview page, click the **API Key** button
+2. In the API Key management dialog, click **创建** (Create)
+3. A new API key will be generated, starting with `application-`, for example:
+   ```
+   application-c527aa669276e38ab7880b1f43255c9a
+   ```
+4. Click the copy icon to copy the API key
+5. Use this as your `MAXKB_API_KEY` value
+
+![API Key Creation](image/MAXKB_API_KEY.png)
+
+> **Note**: Keep your API key secure and don't commit it to version control. The `.env` file is already in `.gitignore`.
+
+</details>
 
 ### Usage
 
@@ -641,11 +717,11 @@ npm install
 ### 🚀 Launch Services
 
 ```bash
-# Terminal 1: Start Backend (port 5001)
+# Terminal 1: Start Backend (port 5000)
 cd backend
 python app.py
 
-# Terminal 2: Start Frontend (port 5173)
+# Terminal 2: Start Frontend (port 3000)
 cd frontend
 npm run dev
 ```
@@ -654,8 +730,8 @@ npm run dev
 
 | Service | URL |
 |---------|-----|
-| Frontend | http://localhost:5173 |
-| Backend API | http://localhost:5001 |
+| Frontend | http://localhost:3000 |
+| Backend API | http://localhost:5000 |
 | MaxKB Knowledge Base | http://localhost:8080 |
 
 ---

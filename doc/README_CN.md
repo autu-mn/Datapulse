@@ -107,7 +107,7 @@
 ## 🛠️ 技术架构
 
 <div align="center">
-<img src="../image/技术架构.png" alt="技术架构" width="700"/>
+<img src="../image/技术架构_CN.png" alt="技术架构" width="700"/>
 </div>
 
 <table>
@@ -240,6 +240,15 @@ MaxKB 是 OpenVista 的 **AI 问答核心**，采用 **RAG（检索增强生成�
 
 #### 方式一：使用预配置知识库（推荐）
 
+**Windows PowerShell:**
+```powershell
+cd maxkb-export
+
+# 一键安装（含数据库备份恢复）
+.\install.ps1
+```
+
+**Linux / macOS:**
 ```bash
 cd maxkb-export
 
@@ -247,6 +256,8 @@ cd maxkb-export
 chmod +x install.sh
 ./install.sh
 ```
+
+> **说明**: `chmod +x` 是 Linux/Unix 命令，用于给脚本添加执行权限。Windows 用户请使用 `install.ps1` 脚本。
 
 安装脚本会自动：
 - 拉取 MaxKB Docker 镜像
@@ -262,6 +273,8 @@ docker-compose -f docker-compose.maxkb.yml up -d
 
 #### 配置 .env 文件
 
+在项目根目录创建 `.env` 文件，配置以下内容：
+
 ```env
 # MaxKB 服务配置
 MAXKB_URL=http://localhost:8080
@@ -270,9 +283,68 @@ MAXKB_PASSWORD=your_password
 MAXKB_KNOWLEDGE_ID=your_knowledge_id
 
 # MaxKB AI API（用于问答）
-MAXKB_AI_URL=http://localhost:8080/api/application/{app_id}/chat/completions
-MAXKB_API_KEY=your_maxkb_api_key
+MAXKB_AI_URL=http://localhost:8080/chat/api/019adeb1-9073-7320-bce2-295...
+MAXKB_API_KEY=application-c527aa669276e38ab7880b1f43255c9a
 ```
+
+<details>
+<summary>📖 点击展开：如何获取 MaxKB API 配置值</summary>
+
+### 如何获取 MaxKB API 配置值
+
+安装 MaxKB 后，需要在 `.env` 文件中配置以下值：
+
+#### 1. MAXKB_KNOWLEDGE_ID（知识库 ID）
+
+**获取步骤：**
+
+1. 登录 MaxKB（`http://localhost:8080`）
+2. 在顶部菜单中点击 **知识库**
+3. 创建新知识库或选择现有知识库
+4. 点击进入知识库查看文档
+5. 查看浏览器地址栏的 URL，格式如下：
+   ```
+   http://localhost:8080/admin/knowledge/019ae417-2fc017ed1652/default/document
+   ```
+6. 知识库 ID 就是 `/knowledge/` 和 `/default/` 之间的部分：
+   - 在上面的例子中：`019ae417-2fc017ed1652`
+   - 复制这个 ID 作为 `MAXKB_KNOWLEDGE_ID` 的值
+
+![知识库 ID 位置](../image/MAXKB_KNOWLEDGE_ID.png)
+
+#### 2. MAXKB_AI_URL（API 基础地址）
+
+**获取步骤：**
+
+1. 在 MaxKB 中，点击顶部菜单的 **应用**
+2. 创建新应用或选择现有应用
+3. 在应用概览页面，找到 **API 访问凭据** 部分
+4. 复制 **Base URL** 的值，例如：
+   ```
+   http://localhost:8080/chat/api/019adeb1-9073-7320-bce2-295...
+   ```
+5. 将此值作为 `MAXKB_AI_URL` 的值
+
+![API Base URL 位置](../image/MAXKB_AI_URL.png)
+
+#### 3. MAXKB_API_KEY（API 密钥）
+
+**创建步骤：**
+
+1. 在同一应用概览页面，点击 **API Key** 按钮
+2. 在 API Key 管理对话框中，点击 **创建**
+3. 将生成一个新的 API 密钥，以 `application-` 开头，例如：
+   ```
+   application-c527aa669276e38ab7880b1f43255c9a
+   ```
+4. 点击复制图标复制 API 密钥
+5. 将此值作为 `MAXKB_API_KEY` 的值
+
+![API Key 创建](../image/MAXKB_API_KEY.png)
+
+> **注意**：请妥善保管您的 API 密钥，不要将其提交到版本控制系统。`.env` 文件已在 `.gitignore` 中。
+
+</details>
 
 ### 使用方式
 
@@ -724,11 +796,11 @@ npm install
 ### 🚀 启动服务
 
 ```bash
-# 终端 1：启动后端（端口 5001）
+# 终端 1：启动后端（端口 5000）
 cd backend
 python app.py
 
-# 终端 2：启动前端（端口 5173）
+# 终端 2：启动前端（端口 3000）
 cd frontend
 npm run dev
 ```
@@ -737,8 +809,8 @@ npm run dev
 
 | 服务 | 地址 |
 |------|------|
-| 前端界面 | http://localhost:5173 |
-| 后端 API | http://localhost:5001 |
+| 前端界面 | http://localhost:3000 |
+| 后端 API | http://localhost:5000 |
 | MaxKB 知识库 | http://localhost:8080 |
 
 ---

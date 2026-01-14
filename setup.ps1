@@ -173,6 +173,40 @@ function Install-GitLFS {
         Write-Success "All large files present"
     }
     
+    # Copy GitPulse config.json to backend/GitPulse/ if needed
+    $configSource = "$ScriptDir\GitPulse-Training\GitPulse-Model\config.json"
+    $configTarget = "$ScriptDir\backend\GitPulse\config.json"
+    
+    if (Test-Path $configSource) {
+        if (-not (Test-Path $configTarget)) {
+            Write-Info "Copying GitPulse config.json..."
+            $targetDir = Split-Path -Parent $configTarget
+            if (-not (Test-Path $targetDir)) {
+                New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+            }
+            Copy-Item $configSource $configTarget -Force
+            Write-Success "GitPulse config.json copied"
+        } else {
+            Write-Success "GitPulse config.json already exists"
+        }
+    } else {
+        Write-Info "GitPulse config.json not found at source, skipping copy"
+    }
+    
+    # Verify GitPulse model files
+    $weightsFile = "$ScriptDir\backend\GitPulse\gitpulse_weights.pt"
+    if (Test-Path $weightsFile) {
+        $fileSize = (Get-Item $weightsFile).Length / 1MB
+        if ($fileSize -gt 10) {
+            Write-Success "GitPulse model weights verified ($([math]::Round($fileSize, 2)) MB)"
+        } else {
+            Write-Fail "GitPulse model weights file too small ($([math]::Round($fileSize, 2)) MB) - may be LFS pointer"
+            Write-Info "Please run 'git lfs pull' to download actual file"
+        }
+    } else {
+        Write-Info "GitPulse model weights not found (will be downloaded when needed)"
+    }
+    
     Pop-Location
     return $true
 }
@@ -253,7 +287,7 @@ function Install-MaxKB {
     Write-Step "3/6" "MaxKB Knowledge Base"
     
     $BackupFile = "$ScriptDir\maxkb-export\db\maxkb_full.dump"
-    $MaxKBImage = "registry.fit2cloud.com/maxkb/maxkb"
+    $MaxKBImage = "registry.fit2cloud.com/maxkb/maxkb:v2.3.1"
     
     # Check if already installed
     $containerExists = docker ps -a --filter "name=openvista-maxkb" --format "{{.Names}}" 2>$null
@@ -346,14 +380,60 @@ function Install-MaxKB {
     
     # Reset password
     Write-Info "Configuring admin account..."
-    $passwordMd5 = "0df6c52f03e1c75504c7bb9a09c2a016"
-    $sql = "UPDATE `"user`" SET password = '$passwordMd5' WHERE username = 'admin';"
-    echo $sql | docker exec -i openvista-maxkb psql -U root -d maxkb 2>$null | Out-Null
+    $passwordMd5 = "0df6c52f03e1c75504c7bb9a09c2a016"  # MaxKB@123456 的 MD5 哈希值
+    
+    # Use SQL file method to avoid PowerShell quoting issues
+    $tempSqlFile = [System.IO.Path]::GetTempFileName()
+    $updateSql = "UPDATE `"user`" SET password = '$passwordMd5' WHERE username = 'admin';"
+    $updateSql | Out-File -FilePath $tempSqlFile -Encoding utf8 -NoNewline
+    
+    # Copy SQL file to container and execute
+    docker cp $tempSqlFile openvista-maxkb:/tmp/reset_password.sql 2>&1 | Out-Null
+    docker exec openvista-maxkb psql -U root -d maxkb -f /tmp/reset_password.sql 2>&1 | Out-Null
+    docker exec openvista-maxkb rm -f /tmp/reset_password.sql 2>&1 | Out-Null
+    Remove-Item $tempSqlFile -Force | Out-Null
+    
+    # Verify password was set correctly using SQL file
+    $verifySqlFile = [System.IO.Path]::GetTempFileName()
+    $verifySql = "SELECT COUNT(*) FROM `"user`" WHERE username = 'admin' AND password = '$passwordMd5';"
+    $verifySql | Out-File -FilePath $verifySqlFile -Encoding utf8 -NoNewline
+    
+    docker cp $verifySqlFile openvista-maxkb:/tmp/verify_password.sql 2>&1 | Out-Null
+    $verifyResult = docker exec openvista-maxkb psql -U root -d maxkb -t -f /tmp/verify_password.sql 2>&1
+    docker exec openvista-maxkb rm -f /tmp/verify_password.sql 2>&1 | Out-Null
+    Remove-Item $verifySqlFile -Force | Out-Null
+    
+    $verifyCount = ($verifyResult | Out-String).Trim()
+    
+    if ($verifyCount -match "^\s*1\s*$") {
+        Write-Success "Admin password reset successfully"
+    } else {
+        Write-Fail "Password reset verification failed"
+        Write-Info "Please run: .\maxkb-export\reset_password.ps1"
+    }
     
     # Restart
     Write-Info "Restarting service..."
     docker restart openvista-maxkb 2>&1 | Out-Null
-    Start-Sleep -Seconds 10
+    Start-Sleep -Seconds 15
+    
+    # Wait for service to be fully ready
+    Write-Info "Waiting for service to be ready..."
+    $maxRetries = 20
+    for ($i = 1; $i -le $maxRetries; $i++) {
+        try {
+            $response = Invoke-WebRequest -Uri "http://localhost:8080" -TimeoutSec 3 -ErrorAction SilentlyContinue
+            if ($response.StatusCode -eq 200) {
+                break
+            }
+        } catch {
+            if ($i -eq $maxRetries) {
+                Write-Fail "Service may not be fully ready, but continuing..."
+            } else {
+                Start-Sleep -Seconds 3
+            }
+        }
+    }
     
     Write-Success "MaxKB installation complete"
     Write-Host ""
@@ -381,7 +461,7 @@ function Install-MaxKB {
 function Set-APIKeys {
     Write-Step "4/6" "API Keys Configuration"
     
-    $envFile = "$ScriptDir\backend\.env"
+    $envFile = "$ScriptDir\.env"
     $githubToken = $null
     $deepseekKey = $null
     
@@ -509,14 +589,8 @@ function Set-APIKeys {
         $envContent += "# DEEPSEEK_API_KEY=your_key_here`n"
     }
     
-    # Ensure backend directory exists
-    $backendDir = "$ScriptDir\backend"
-    if (-not (Test-Path $backendDir)) {
-        New-Item -ItemType Directory -Path $backendDir -Force | Out-Null
-    }
-    
     $envContent | Out-File -FilePath $envFile -Encoding utf8 -NoNewline
-    Write-Success "Configuration saved to backend\.env"
+    Write-Success "Configuration saved to .env (project root)"
     
     return $true
 }
@@ -603,14 +677,14 @@ function Start-Services {
     $frontendRunning = $false
     
     try {
-        $backendResponse = Invoke-WebRequest -Uri "http://localhost:5001" -TimeoutSec 2 -ErrorAction SilentlyContinue
+        $backendResponse = Invoke-WebRequest -Uri "http://localhost:5000" -TimeoutSec 2 -ErrorAction SilentlyContinue
         if ($backendResponse.StatusCode -eq 200) {
             $backendRunning = $true
         }
     } catch { }
     
     try {
-        $frontendResponse = Invoke-WebRequest -Uri "http://localhost:5173" -TimeoutSec 2 -ErrorAction SilentlyContinue
+        $frontendResponse = Invoke-WebRequest -Uri "http://localhost:3000" -TimeoutSec 2 -ErrorAction SilentlyContinue
         if ($frontendResponse.StatusCode -eq 200) {
             $frontendRunning = $true
         }
@@ -618,7 +692,7 @@ function Start-Services {
     
     if ($backendRunning -and $frontendRunning) {
         Write-Success "Services are already running"
-        Start-Process "http://localhost:5173"
+        Start-Process "http://localhost:3000"
         return $true
     }
     
@@ -645,14 +719,14 @@ function Start-Services {
     
     # Start backend
     if ($pythonAvailable -and -not $backendRunning) {
-        Write-Info "Starting backend (port 5001)..."
+        Write-Info "Starting backend (port 5000)..."
         Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$ScriptDir\backend'; python app.py" -WindowStyle Minimized
         Start-Sleep -Seconds 3
     }
     
     # Start frontend
     if ($nodeAvailable -and -not $frontendRunning) {
-        Write-Info "Starting frontend (port 5173)..."
+        Write-Info "Starting frontend (port 3000)..."
         Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$ScriptDir\frontend'; npm run dev" -WindowStyle Minimized
         Start-Sleep -Seconds 5
     }
@@ -663,7 +737,7 @@ function Start-Services {
     
     Write-Success "Services started"
     Write-Info "Opening browser..."
-    Start-Process "http://localhost:5173"
+    Start-Process "http://localhost:3000"
     
     return $true
 }
@@ -684,9 +758,9 @@ function Show-Complete {
     Write-Host "  Service URLs:" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "    Frontend:  " -ForegroundColor DarkGray -NoNewline
-    Write-Host "http://localhost:5173" -ForegroundColor White
+    Write-Host "http://localhost:3000" -ForegroundColor White
     Write-Host "    Backend:   " -ForegroundColor DarkGray -NoNewline
-    Write-Host "http://localhost:5001" -ForegroundColor White
+    Write-Host "http://localhost:5000" -ForegroundColor White
     Write-Host "    MaxKB:     " -ForegroundColor DarkGray -NoNewline
     Write-Host "http://localhost:8080" -ForegroundColor White
     Write-Host ""

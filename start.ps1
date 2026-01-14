@@ -14,7 +14,7 @@ $backendRunning = $false
 $frontendRunning = $false
 
 try {
-    $backendResponse = Invoke-WebRequest -Uri "http://localhost:5001" -TimeoutSec 2 -ErrorAction SilentlyContinue
+    $backendResponse = Invoke-WebRequest -Uri "http://localhost:5000" -TimeoutSec 2 -ErrorAction SilentlyContinue
     if ($backendResponse.StatusCode -eq 200) {
         $backendRunning = $true
         Write-Host "  [OK] Backend is running" -ForegroundColor Green
@@ -24,7 +24,7 @@ try {
 }
 
 try {
-    $frontendResponse = Invoke-WebRequest -Uri "http://localhost:5173" -TimeoutSec 2 -ErrorAction SilentlyContinue
+    $frontendResponse = Invoke-WebRequest -Uri "http://localhost:3000" -TimeoutSec 2 -ErrorAction SilentlyContinue
     if ($frontendResponse.StatusCode -eq 200) {
         $frontendRunning = $true
         Write-Host "  [OK] Frontend is running" -ForegroundColor Green
@@ -40,7 +40,7 @@ if ($backendRunning -and $frontendRunning) {
     Write-Host ""
     Write-Host "  Opening browser..." -ForegroundColor Cyan
     Start-Sleep -Seconds 1
-    Start-Process "http://localhost:5173"
+    Start-Process "http://localhost:3000"
     exit 0
 }
 
@@ -66,12 +66,12 @@ Write-Host ""
 Write-Host "  [OK] Services started!" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Opening browser..." -ForegroundColor Cyan
-Start-Process "http://localhost:5173"
+    Start-Process "http://localhost:3000"
 
 Write-Host ""
 Write-Host "  Service URLs:" -ForegroundColor Cyan
-Write-Host "    Frontend:  http://localhost:5173" -ForegroundColor White
-Write-Host "    Backend:   http://localhost:5001" -ForegroundColor White
+Write-Host "    Frontend:  http://localhost:3000" -ForegroundColor White
+Write-Host "    Backend:   http://localhost:5000" -ForegroundColor White
 Write-Host "    MaxKB:     http://localhost:8080" -ForegroundColor White
 Write-Host ""
 
