@@ -1,14 +1,10 @@
 <div align="center">
 
-**[English](README.md)** · **[中文文档](README_CN.md)**
-
-<br/>
-
 # 🔮 OpenVista
 
 ### 基于多模态时序预测的 GitHub 仓库生态画像分析平台
 
-<img src="image/首页.png" alt="OpenVista 仪表盘" width="800"/>
+<img src="../image/首页.png" alt="OpenVista 仪表盘" width="800"/>
 
 <br/>
 
@@ -18,7 +14,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 
-<br/>
+**[English](README.md)** · **[中文文档](README_CN.md)** 
 
 </div>
 
@@ -71,6 +67,15 @@
 
 我们的平台将原始数据转化为可执行的洞察，帮助维护者、贡献者和组织做出数据驱动的开源项目决策。
 
+#### 📊 实证发现
+
+通过大规模数据分析，我们发现：
+
+- **文本信息对预测的显著贡献**：融合文本特征后，模型解释力提升 66.7%
+- **文档质量与项目健康度强相关**：清晰的 README、完善的贡献指南显著降低协作门槛
+- **CHAOSS 框架的全面性**：多维度评估比单一指标（如 Star 数）更能反映真实健康状况
+- **Issue 维护质量影响可持续性**：Issue 响应效率、标签体系等长期影响项目发展
+
 ---
 
 ## 📑 目录
@@ -102,7 +107,7 @@
 ## 🛠️ 技术架构
 
 <div align="center">
-<img src="image/技术架构.png" alt="技术架构" width="700"/>
+<img src="../image/技术架构.png" alt="技术架构" width="700"/>
 </div>
 
 <table>
@@ -199,7 +204,7 @@ OpenVista/
 ## 🤖 MaxKB 智能问答系统
 
 <div align="center">
-<img src="image/MaxKB知识库.png" alt="MaxKB 知识库" width="700"/>
+<img src="../image/MaxKB知识库.png" alt="MaxKB 知识库" width="700"/>
 </div>
 
 ### 系统架构
@@ -276,7 +281,7 @@ MAXKB_API_KEY=your_maxkb_api_key
 3. **预测解释**：MaxKB 为预测结果生成可解释性分析
 
 <div align="center">
-<img src="image/Agent.png" alt="AI Agent" width="600"/>
+<img src="../image/Agent.png" alt="AI Agent" width="600"/>
 </div>
 
 ---
@@ -286,7 +291,7 @@ MAXKB_API_KEY=your_maxkb_api_key
 ### 模型性能
 
 <div align="center">
-<img src="image/不同方法在测试集上的性能对比.png" alt="性能对比" width="800"/>
+<img src="../image/不同方法在测试集上的性能对比.png" alt="性能对比" width="800"/>
 </div>
 
 在 **4,232 个 数据（600+仓库滑动窗口生成）** 的 **636 个测试样本** 上评估（两阶段训练：预训练 + 微调）：
@@ -313,7 +318,7 @@ MAXKB_API_KEY=your_maxkb_api_key
 **GitPulse** 是 OpenVista 的核心多模态时序预测模型，能够同时预测 16 个 OpenDigger 指标的未来走势。
 
 <div align="center">
-<img src="image/预测模型.png" alt="GitPulse 预测界面" width="800"/>
+<img src="../image/预测模型.png" alt="GitPulse 预测界面" width="800"/>
 </div>
 
 ### 架构亮点
@@ -330,7 +335,7 @@ MAXKB_API_KEY=your_maxkb_api_key
 <summary>📈 点击查看文本贡献效果</summary>
 
 <div align="center">
-<img src="image/时序与文本的结合效果.png" alt="GitPulse 模型效果" width="700"/>
+<img src="../image/时序与文本的结合效果.png" alt="GitPulse 模型效果" width="700"/>
 </div>
 
 </details>
@@ -452,13 +457,13 @@ GitPulse-Training/
 <summary><b>🔮 智能趋势预测</b> - 12 个月预测与历史数据对比</summary>
 
 <div align="center">
-<img src="image/预测模型.png" alt="预测模型" width="800"/>
+<img src="../image/预测模型.png" alt="预测模型" width="800"/>
 </div>
 
 **AI 预测归因解释：**
 
 <div align="center">
-<img src="image/issue预测解释图.png" alt="AI 预测解释" width="800"/>
+<img src="../image/issue预测解释图.png" alt="AI 预测解释" width="800"/>
 </div>
 
 </details>
@@ -467,7 +472,7 @@ GitPulse-Training/
 <summary><b>📊 时序可视化</b> - 多维度指标分析仪表盘</summary>
 
 <div align="center">
-<img src="image/可视化图.png" alt="可视化仪表盘" width="800"/>
+<img src="../image/可视化图.png" alt="可视化仪表盘" width="800"/>
 </div>
 
 </details>
@@ -476,8 +481,115 @@ GitPulse-Training/
 <summary><b>🏥 CHAOSS 健康评价</b> - 六维雷达图分析</summary>
 
 <div align="center">
-<img src="image/CHAOSS健康评价.png" alt="CHAOSS 评价" width="800"/>
+<img src="../image/CHAOSS健康评价.png" alt="CHAOSS 评价" width="800"/>
 </div>
+
+### 评分算法
+
+CHAOSS 评价采用多阶段评分算法，将 OpenDigger 的 16 个时序指标映射到 6 个评价维度。
+
+#### 1. 指标归一化
+
+对每个指标值进行归一化，将原始值映射到 0-100 分区间。支持三种归一化策略：
+
+**策略一：百分位归一化（优先）**
+
+对于配置了 `use_percentile=True` 的指标：
+
+$$s_{\text{norm}} = \min\left(100, \frac{v}{P_{75}} \times 70\right)$$
+
+其中：
+- $v$ 为当前指标值
+- $P_{75}$ 为历史数据的 75% 分位数
+- 达到 $P_{75}$ 时得分为 70 分
+
+**策略二：基准值归一化**
+
+对于配置了基准值 `baseline` 的指标：
+
+$$s_{\text{norm}} = \begin{cases}
+60 \times \frac{v}{B} & \text{if } \frac{v}{B} < 1 \\
+60 + 25 \times \left(\frac{v}{B} - 1\right) & \text{if } 1 \leq \frac{v}{B} < 2 \\
+85 + 5 \times \left(\frac{v}{B} - 2\right) & \text{if } \frac{v}{B} \geq 2
+\end{cases}$$
+
+其中 $B$ 为基准值（对应 60 分的健康水平）。
+
+**策略三：对数尺度归一化**
+
+对于配置了 `log_scale=True` 的指标：
+
+$$s_{\text{norm}} = \min\left(100, \log_{10}(1 + v) \times 50\right)$$
+
+#### 2. 数据质量评估
+
+对每个指标的历史数据评估质量得分 $q \in [0, 1]$：
+
+$$q = 1 - \min(0.4, r_{\text{outlier}}) - \min(0.3, \max(0, r_{\text{zero}} - 0.3) \times 0.5)$$
+
+其中：
+- $r_{\text{outlier}}$ 为异常值比例（基于 IQR 方法检测）
+- $r_{\text{zero}}$ 为零值比例
+
+异常值检测使用 IQR（四分位距）方法：
+
+$$\text{outlier} = \{v \mid v < Q_1 - k \times \text{IQR} \text{ 或 } v > Q_3 + k \times \text{IQR}\}$$
+
+其中 $k$ 为 IQR 倍数（根据指标类型设置，通常为 1.5-2.5）。
+
+#### 3. 质量折损应用
+
+将数据质量应用于归一化得分：
+
+$$s_{\text{quality}} = s_{\text{norm}} \times (0.7 + 0.3 \times q)$$
+
+最多扣 30%，避免系统性压分。
+
+#### 4. 维度得分计算
+
+对每个维度，计算加权平均：
+
+$$S_d = \frac{\sum_{i=1}^{n} s_i \times w_i}{\sum_{i=1}^{n} w_i}$$
+
+其中：
+- $S_d$ 为维度 $d$ 的得分
+- $s_i$ 为指标 $i$ 的质量调整后得分
+- $w_i$ 为指标 $i$ 的权重
+- $n$ 为维度内的指标数量
+
+应用健康软下限：
+
+$$S_d' = \max(30, S_d)$$
+
+#### 5. 月度评分
+
+对最近 12 个月（或所有可用月份）的数据，按月计算各维度得分，得到月度评分序列：
+
+$$\{S_{d,t}\}_{t=1}^{T}$$
+
+其中 $T$ 为评估月份数（最多 12 个月）。
+
+#### 6. 异常值处理与最终评分
+
+对月度评分序列，使用改进的 IQR 方法去除异常值，计算最终得分：
+
+对于维度得分序列 $\{S_{d,1}, S_{d,2}, \ldots, S_{d,T}\}$：
+
+1. 计算 IQR：$\text{IQR} = Q_3 - Q_1$
+2. 识别异常值：超出 $[Q_1 - 1.5 \times \text{IQR}, Q_3 + 1.5 \times \text{IQR}]$ 的值
+3. 计算最终得分：对非异常值取平均
+
+$$S_d^{\text{final}} = \frac{1}{|\mathcal{V}|} \sum_{t \in \mathcal{V}} S_{d,t}$$
+
+其中 $\mathcal{V}$ 为非异常值的月份集合。
+
+#### 7. 总体评分
+
+计算所有维度的平均得分：
+
+$$S_{\text{overall}} = \frac{1}{D} \sum_{d=1}^{D} S_d^{\text{final}}$$
+
+其中 $D = 6$ 为维度数量。
 
 </details>
 
@@ -485,7 +597,7 @@ GitPulse-Training/
 <summary><b>🤖 AI 智能摘要</b> - 项目分析与相似仓库推荐</summary>
 
 <div align="center">
-<img src="image/项目摘要.png" alt="AI 摘要" width="800"/>
+<img src="../image/项目摘要.png" alt="AI 摘要" width="800"/>
 </div>
 
 </details>
@@ -494,13 +606,13 @@ GitPulse-Training/
 <summary><b>🐛 Issue 智能分析</b> - 分类统计与趋势分析</summary>
 
 <div align="center">
-<img src="image/issue分析（2）.png" alt="Issue 分析" width="800"/>
+<img src="../image/issue分析（2）.png" alt="Issue 分析" width="800"/>
 </div>
 
 **分类统计饼图：**
 
 <div align="center">
-<img src="image/issue分析（1）.png" alt="Issue 分类统计" width="800"/>
+<img src="../image/issue分析（1）.png" alt="Issue 分类统计" width="800"/>
 </div>
 
 </details>
@@ -509,7 +621,7 @@ GitPulse-Training/
 <summary><b>📖 内置技术文档</b> - 技术文档与 API 参考</summary>
 
 <div align="center">
-<img src="image/技术文档.png" alt="技术文档" width="800"/>
+<img src="../image/技术文档.png" alt="技术文档" width="800"/>
 </div>
 
 </details>
@@ -668,7 +780,7 @@ npm run dev
 
 **核心观点**：写好文档、规范 Issue、完善描述，不是可选项，而是项目可持续发展的必要保障。在 AI 时代，这些结构化的文本信息正在成为降低贡献门槛的关键工具。当文档清晰完整时，AI 代码助手可以更好地理解项目上下文；当 Issue 描述规范详细时，AI 可以自动分类、提取关键信息、推荐解决方案；当文档体系完善时，基于 RAG 的智能问答系统可以让任何人通过自然语言快速获取项目知识。
 
-📖 **阅读完整倡议书**：[doc/倡议书/倡议书.md](doc/倡议书/倡议书.md)
+📖 **阅读完整倡议书**：[doc/倡议书/倡议书.md](../倡议书/倡议书.md)
 
 倡议书包含：
 - 基于 600+ 个 GitHub 项目的实证发现
@@ -697,4 +809,3 @@ npm run dev
 *用预测智能赋能开源社区*
 
 </div>
-
