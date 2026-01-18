@@ -71,8 +71,7 @@ Our platform transforms raw data into actionable intelligence, helping maintaine
 
 ## 📑 Table of Content
 
-- [🔮 OpenVista](#-openvista)
-    - [Multimodal Time-Series Prediction Platform for GitHub Repository Health](#multimodal-time-series-prediction-platform-for-github-repository-health)
+
   - [🌟 Overview](#-overview)
   - [📑 Table of Content](#-table-of-content)
   - [🛠️ Tech Stack](#️-tech-stack)
@@ -84,17 +83,11 @@ Our platform transforms raw data into actionable intelligence, helping maintaine
     - [Knowledge Base Contents](#knowledge-base-contents)
     - [Tech Stack \& Tools](#tech-stack--tools)
     - [MaxKB Initialization \& Setup](#maxkb-initialization--setup)
-    - [How to Get MaxKB API Configuration Values](#how-to-get-maxkb-api-configuration-values)
     - [Usage](#usage)
   - [🔬 GitPulse Prediction Model](#-gitpulse-prediction-model)
     - [Model Performance](#model-performance)
-    - [Model Overview](#model-overview)
-    - [Architecture Highlights](#architecture-highlights)
-    - [Model Parameters](#model-parameters)
-    - [Two-Stage Training](#two-stage-training)
     - [Supported Metrics (16 total)](#supported-metrics-16-total)
     - [Training Your Own Model](#training-your-own-model)
-    - [Reproducing GitPulse Model](#reproducing-gitpulse-model)
   - [✨ Feature Gallery](#-feature-gallery)
   - [🤝 Contributing](#-contributing)
   - [📢 Community Initiative](#-community-initiative)
@@ -762,6 +755,11 @@ We welcome contributions! Please follow these steps:
 
 ---
 
+## 📄 License
+
+This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
+
+---
 
 ## 📢 Community Initiative
 
