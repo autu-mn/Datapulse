@@ -251,7 +251,7 @@ OpenVista/
 
 - Python 3.8+
 - Node.js 16+
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)（用于 MaxKB）
+- Docker Desktop（用于 MaxKB）
 - Git（自动安装 Git LFS）
 
 ### 🎯 一键安装（推荐）
