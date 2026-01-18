@@ -72,34 +72,34 @@ Our platform transforms raw data into actionable intelligence, helping maintaine
 ## 📑 Table of Content
 
 - [🔮 OpenVista](#-openvista)
-- [🌟 Overview](#-overview)
-- [📑 Table of Content](#-table-of-content)
-- [🛠️ Tech Stack](#️-tech-stack)
-- [📁 Project Structure](#-project-structure)
-- [🚀 Quick Start](#-quick-start)
-- [📖 Usage Guide](#-usage-guide)
-- [🤖 MaxKB Intelligent Q\&A System](#-maxkb-intelligent-qa-system)
-  - [System Architecture](#system-architecture)
-  - [Knowledge Base Contents](#knowledge-base-contents)
-  - [Tech Stack \& Tools](#tech-stack--tools)
-  - [MaxKB Initialization \& Setup](#maxkb-initialization--setup)
-  - [Deployment \& Configuration](#deployment--configuration)
-  - [How to Get MaxKB API Configuration Values](#how-to-get-maxkb-api-configuration-values)
-  - [Usage](#usage)
-- [🔬 GitPulse Prediction Model](#-gitpulse-prediction-model)
-  - [Model Performance](#model-performance)
-  - [Model Overview](#model-overview)
-  - [Architecture Highlights](#architecture-highlights)
-  - [Model Parameters](#model-parameters)
-  - [Two-Stage Training](#two-stage-training)
-  - [Supported Metrics (16 total)](#supported-metrics-16-total)
-  - [Training Your Own Model](#training-your-own-model)
-  - [Reproducing GitPulse Model](#reproducing-gitpulse-model)
-- [✨ Feature Gallery](#-feature-gallery)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
-- [📢 Community Initiative](#-community-initiative)
-- [🙏 Acknowledgments](#-acknowledgments)
+    - [Multimodal Time-Series Prediction Platform for GitHub Repository Health](#multimodal-time-series-prediction-platform-for-github-repository-health)
+  - [🌟 Overview](#-overview)
+  - [📑 Table of Content](#-table-of-content)
+  - [🛠️ Tech Stack](#️-tech-stack)
+  - [📁 Project Structure](#-project-structure)
+  - [🚀 Quick Start](#-quick-start)
+  - [📖 Usage Guide](#-usage-guide)
+  - [🤖 MaxKB Intelligent Q\&A System](#-maxkb-intelligent-qa-system)
+    - [System Architecture](#system-architecture)
+    - [Knowledge Base Contents](#knowledge-base-contents)
+    - [Tech Stack \& Tools](#tech-stack--tools)
+    - [MaxKB Initialization \& Setup](#maxkb-initialization--setup)
+    - [How to Get MaxKB API Configuration Values](#how-to-get-maxkb-api-configuration-values)
+    - [Usage](#usage)
+  - [🔬 GitPulse Prediction Model](#-gitpulse-prediction-model)
+    - [Model Performance](#model-performance)
+    - [Model Overview](#model-overview)
+    - [Architecture Highlights](#architecture-highlights)
+    - [Model Parameters](#model-parameters)
+    - [Two-Stage Training](#two-stage-training)
+    - [Supported Metrics (16 total)](#supported-metrics-16-total)
+    - [Training Your Own Model](#training-your-own-model)
+    - [Reproducing GitPulse Model](#reproducing-gitpulse-model)
+  - [✨ Feature Gallery](#-feature-gallery)
+  - [🤝 Contributing](#-contributing)
+  - [📄 License](#-license)
+  - [📢 Community Initiative](#-community-initiative)
+  - [🙏 Acknowledgments](#-acknowledgments)
 
 ---
 
@@ -206,7 +206,7 @@ OpenVista/
 
 - Python 3.8+
 - Node.js 16+
-- Docker Desktop (for MaxKB)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for MaxKB)
 - Git (Git LFS auto-installed)
 
 ### 🎯 One-Click Setup (Recommended)
@@ -371,9 +371,9 @@ The system automatically builds a knowledge base for each analyzed repository:
 <details>
 <summary>If you didn’t set it up earlier, you can configure MaxKB here</summary>
 
-### Deployment & Configuration
+#### Deployment & Configuration
 
-#### Option 1: Use Pre-configured Knowledge Base (Recommended)
+##### Option 1: Use Pre-configured Knowledge Base (Recommended)
 
 **Windows PowerShell:**
 ```powershell
@@ -399,7 +399,7 @@ The installation script will automatically:
 - Create data volumes and restore pre-configured data
 - Start service at `http://localhost:8080`
 
-#### Option 2: Fresh Installation
+##### Option 2: Fresh Installation
 
 ```bash
 # Start with Docker Compose

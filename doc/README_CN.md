@@ -112,9 +112,9 @@
     - [知识库内容](#知识库内容)
     - [技术栈与工具](#技术栈与工具)
     - [MaxKB 初始化与配置](#maxkb-初始化与配置)
-    - [部署与配置](#部署与配置)
-      - [方式一：使用预配置知识库（推荐）](#方式一使用预配置知识库推荐)
-      - [方式二：全新安装](#方式二全新安装)
+      - [部署与配置](#部署与配置)
+        - [方式一：使用预配置知识库（推荐）](#方式一使用预配置知识库推荐)
+        - [方式二：全新安装](#方式二全新安装)
       - [配置 .env 文件](#配置-env-文件)
     - [如何获取 MaxKB API 配置值](#如何获取-maxkb-api-配置值)
       - [1. MAXKB\_KNOWLEDGE\_ID（知识库 ID）](#1-maxkb_knowledge_id知识库-id)
@@ -251,7 +251,7 @@ OpenVista/
 
 - Python 3.8+
 - Node.js 16+
-- Docker Desktop（用于 MaxKB）
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)（用于 MaxKB）
 - Git（自动安装 Git LFS）
 
 ### 🎯 一键安装（推荐）
@@ -415,9 +415,9 @@ MaxKB 是 OpenVista 的 **AI 问答核心**，采用 **RAG（检索增强生成�
 <details>
 <summary>如果前面没有选择配置，这里可以单独配置 MaxKB 模块</summary>
 
-### 部署与配置
+#### 部署与配置
 
-#### 方式一：使用预配置知识库（推荐）
+##### 方式一：使用预配置知识库（推荐）
 
 **Windows PowerShell:**
 ```powershell
@@ -443,7 +443,7 @@ chmod +x install.sh
 - 创建数据卷并恢复预配置数据
 - 启动服务在 `http://localhost:8080`
 
-#### 方式二：全新安装
+##### 方式二：全新安装
 
 ```bash
 # 使用 Docker Compose 启动
