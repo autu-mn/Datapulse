@@ -87,6 +87,7 @@
 - [🤖 MaxKB 智能问答系统](#-maxkb-智能问答系统)
   - [系统架构](#系统架构)
   - [知识库内容](#知识库内容)
+  - [MaxKB 初始化与配置](#maxkb-初始化与配置)
   - [部署与配置](#部署与配置)
 - [🔬 GitPulse 预测模型](#-gitpulse-预测模型)
   - [模型性能](#模型性能)
@@ -201,6 +202,134 @@ OpenVista/
 
 ---
 
+## 🚀 快速开始
+
+### 环境要求
+
+- Python 3.8+
+- Node.js 16+
+- Docker Desktop（用于 MaxKB）
+- Git（自动安装 Git LFS）
+
+### 🎯 一键安装（推荐）
+
+我们提供了统一的安装脚本，自动完成所有配置：
+
+**Windows PowerShell:**
+```powershell
+git clone https://github.com/your-username/OpenVista.git
+cd OpenVista
+.\setup.ps1
+```
+
+**Linux / macOS:**
+```bash
+git clone https://github.com/your-username/OpenVista.git
+cd OpenVista
+chmod +x setup.sh && ./setup.sh
+```
+
+安装脚本将自动完成：
+
+| 步骤 | 说明 |
+|------|------|
+| 📦 Git LFS | 拉取模型权重、训练数据、知识库数据 |
+| 🐳 Docker | 检测安装状态，引导安装 |
+| 🤖 MaxKB | 一键部署知识库系统，自动恢复数据 |
+| 🔑 GitHub Token | 交互式配置，自动验证有效性 |
+| 📚 依赖安装 | Python/Node.js 依赖可选安装 |
+
+---
+
+### 📖 手动安装（高级用户）
+
+<details>
+<summary>点击展开手动安装步骤</summary>
+
+#### 1️⃣ 克隆与初始化
+
+```bash
+git clone https://github.com/your-username/OpenVista.git
+cd OpenVista
+
+# 拉取大文件（模型权重、训练数据）
+git lfs install
+git lfs pull
+```
+
+#### 2️⃣ 部署 MaxKB
+
+```bash
+cd maxkb-export
+chmod +x install.sh
+./install.sh  # 或 Windows: .\install.ps1
+```
+
+访问 `http://localhost:8080` 验证 MaxKB 运行正常。
+
+#### 3️⃣ 环境配置
+
+在项目根目录创建 `.env` 文件：
+
+```env
+# GitHub API Token（必需）
+GITHUB_TOKEN=your_github_token
+
+# DeepSeek API Key（AI 功能）
+DEEPSEEK_API_KEY=your_deepseek_key
+```
+
+#### 4️⃣ 安装依赖
+
+```bash
+# 后端依赖
+cd backend
+pip install -r requirements.txt
+
+# 前端依赖
+cd ../frontend
+npm install
+```
+
+</details>
+
+---
+
+### 🚀 启动服务
+
+```bash
+# 终端 1：启动后端（端口 5000）
+cd backend
+python app.py
+
+# 终端 2：启动前端（端口 3000）
+cd frontend
+npm run dev
+```
+
+### 🌐 访问平台
+
+| 服务 | 地址 |
+|------|------|
+| 前端界面 | http://localhost:3000 |
+| 后端 API | http://localhost:5000 |
+| MaxKB 知识库 | http://localhost:8080 |
+
+---
+
+## 📖 使用指南
+
+### 基本流程
+
+1. **🔍 搜索仓库** — 输入 `owner/repo`（如 `facebook/react`）
+2. **⏳ 等待爬取** — 从 GitHub API 和 OpenDigger 获取数据
+3. **📊 探索分析** — 查看时序图表、Issue 分析
+4. **🔮 查看预测** — 查看 12 个月预测及 AI 解释
+5. **📈 CHAOSS 评估** — 评估社区健康度评分
+6. **🤖 AI 问答** — 使用 MaxKB 询问关于仓库的问题
+
+---
+
 ## 🤖 MaxKB 智能问答系统
 
 <div align="center">
@@ -235,6 +364,11 @@ MaxKB 是 OpenVista 的 **AI 问答核心**，采用 **RAG（检索增强生成�
 | **部署方式** | Docker Compose | 一键部署，支持数据持久化 |
 | **向量数据库** | PostgreSQL + pgvector | 高效向量相似度检索 |
 | **LLM 后端** | 可配置（DeepSeek/OpenAI 等） | 支持多种大模型 |
+
+### MaxKB 初始化与配置
+
+<details>
+<summary>如果前面没有选择配置，这里可以单独配置 MaxKB 模块</summary>
 
 ### 部署与配置
 
@@ -271,6 +405,29 @@ chmod +x install.sh
 docker-compose -f docker-compose.maxkb.yml up -d
 ```
 
+</details>
+
+安装完成后，打开 `http://localhost:8080`，界面应与下图一致：
+
+<div align="center">
+<img src="../image/maxkb初始化.png" alt="MaxKB 初始化界面" width="700"/>
+</div>
+
+由于安装时已完成初始化，默认账号为：
+
+- 用户名：`admin`
+- 密码：`MaxKB@123456`
+
+登录后请参考 [MaxKB 官方文档](https://maxkb.cn/docs/v2/) 完成以下步骤：
+
+1. 创建知识库（用于存放上传的项目文档）
+2. 创建“简单应用”，并将该应用关联到刚创建的知识库
+3. 应用使用的 LLM 可在“模型”中由用户自行选择并配置，如需联网搜索功能，自行创建和配置相应“工具”
+
+完成上述配置后，即可构建由 MaxKB 支持的 RAG 知识库系统。
+
+
+
 #### 配置 .env 文件
 
 在项目根目录创建 `.env` 文件，配置以下内容：
@@ -292,7 +449,7 @@ MAXKB_API_KEY=application-c527aa669276e38ab7880b1f43255c9a
 
 ### 如何获取 MaxKB API 配置值
 
-安装 MaxKB 后，需要在 `.env` 文件中配置以下值：
+配置好 MaxKB 后，需要将对应的 API 配置写入 `.env` 文件中：
 
 #### 1. MAXKB_KNOWLEDGE_ID（知识库 ID）
 
@@ -697,134 +854,6 @@ $$S_{\text{overall}} = \frac{1}{D} \sum_{d=1}^{D} S_d^{\text{final}}$$
 </div>
 
 </details>
-
----
-
-## 🚀 快速开始
-
-### 环境要求
-
-- Python 3.8+
-- Node.js 16+
-- Docker Desktop（用于 MaxKB）
-- Git（自动安装 Git LFS）
-
-### 🎯 一键安装（推荐）
-
-我们提供了统一的安装脚本，自动完成所有配置：
-
-**Windows PowerShell:**
-```powershell
-git clone https://github.com/your-username/OpenVista.git
-cd OpenVista
-.\setup.ps1
-```
-
-**Linux / macOS:**
-```bash
-git clone https://github.com/your-username/OpenVista.git
-cd OpenVista
-chmod +x setup.sh && ./setup.sh
-```
-
-安装脚本将自动完成：
-
-| 步骤 | 说明 |
-|------|------|
-| 📦 Git LFS | 拉取模型权重、训练数据、知识库数据 |
-| 🐳 Docker | 检测安装状态，引导安装 |
-| 🤖 MaxKB | 一键部署知识库系统，自动恢复数据 |
-| 🔑 GitHub Token | 交互式配置，自动验证有效性 |
-| 📚 依赖安装 | Python/Node.js 依赖可选安装 |
-
----
-
-### 📖 手动安装（高级用户）
-
-<details>
-<summary>点击展开手动安装步骤</summary>
-
-#### 1️⃣ 克隆与初始化
-
-```bash
-git clone https://github.com/your-username/OpenVista.git
-cd OpenVista
-
-# 拉取大文件（模型权重、训练数据）
-git lfs install
-git lfs pull
-```
-
-#### 2️⃣ 部署 MaxKB
-
-```bash
-cd maxkb-export
-chmod +x install.sh
-./install.sh  # 或 Windows: .\install.ps1
-```
-
-访问 `http://localhost:8080` 验证 MaxKB 运行正常。
-
-#### 3️⃣ 环境配置
-
-在 `backend/` 目录创建 `.env` 文件：
-
-```env
-# GitHub API Token（必需）
-GITHUB_TOKEN=your_github_token
-
-# DeepSeek API Key（AI 功能）
-DEEPSEEK_API_KEY=your_deepseek_key
-```
-
-#### 4️⃣ 安装依赖
-
-```bash
-# 后端依赖
-cd backend
-pip install -r requirements.txt
-
-# 前端依赖
-cd ../frontend
-npm install
-```
-
-</details>
-
----
-
-### 🚀 启动服务
-
-```bash
-# 终端 1：启动后端（端口 5000）
-cd backend
-python app.py
-
-# 终端 2：启动前端（端口 3000）
-cd frontend
-npm run dev
-```
-
-### 🌐 访问平台
-
-| 服务 | 地址 |
-|------|------|
-| 前端界面 | http://localhost:3000 |
-| 后端 API | http://localhost:5000 |
-| MaxKB 知识库 | http://localhost:8080 |
-
----
-
-## 📖 使用指南
-
-### 基本流程
-
-1. **🔍 搜索仓库** — 输入 `owner/repo`（如 `facebook/react`）
-2. **⏳ 等待爬取** — 从 GitHub API 和 OpenDigger 获取数据
-3. **📊 探索分析** — 查看时序图表、Issue 分析
-4. **🔮 查看预测** — 查看 12 个月预测及 AI 解释
-5. **📈 CHAOSS 评估** — 评估社区健康度评分
-6. **🤖 AI 问答** — 使用 MaxKB 询问关于仓库的问题
 
 ---
 

@@ -84,10 +84,23 @@ Our platform transforms raw data into actionable intelligence, helping maintaine
     - [AI \& Knowledge Base](#ai--knowledge-base)
     - [Data Sources](#data-sources)
   - [📁 Project Structure](#-project-structure)
+  - [🚀 Quick Start](#-quick-start)
+    - [Prerequisites](#prerequisites)
+    - [🎯 One-Click Setup (Recommended)](#-one-click-setup-recommended)
+    - [📖 Manual Installation (Advanced)](#-manual-installation-advanced)
+      - [1️⃣ Clone \& Initialize](#1️⃣-clone--initialize)
+      - [2️⃣ Deploy MaxKB](#2️⃣-deploy-maxkb)
+      - [3️⃣ Environment Configuration](#3️⃣-environment-configuration)
+      - [4️⃣ Install Dependencies](#4️⃣-install-dependencies)
+    - [🚀 Launch Services](#-launch-services)
+    - [🌐 Access the Platform](#-access-the-platform)
+  - [📖 Usage Guide](#-usage-guide)
+    - [Basic Workflow](#basic-workflow)
   - [🤖 MaxKB Intelligent Q\&A System](#-maxkb-intelligent-qa-system)
     - [System Architecture](#system-architecture)
     - [Knowledge Base Contents](#knowledge-base-contents)
     - [Tech Stack \& Tools](#tech-stack--tools)
+    - [MaxKB Initialization \& Setup](#maxkb-initialization--setup)
     - [Deployment \& Configuration](#deployment--configuration)
       - [Option 1: Use Pre-configured Knowledge Base (Recommended)](#option-1-use-pre-configured-knowledge-base-recommended)
       - [Option 2: Fresh Installation](#option-2-fresh-installation)
@@ -111,18 +124,6 @@ Our platform transforms raw data into actionable intelligence, helping maintaine
       - [Key Features](#key-features)
   - [✨ Feature Gallery](#-feature-gallery)
     - [Key Features](#key-features-1)
-  - [🚀 Quick Start](#-quick-start)
-    - [Prerequisites](#prerequisites)
-    - [🎯 One-Click Setup (Recommended)](#-one-click-setup-recommended)
-    - [📖 Manual Installation (Advanced)](#-manual-installation-advanced)
-      - [1️⃣ Clone \& Initialize](#1️⃣-clone--initialize)
-      - [2️⃣ Deploy MaxKB](#2️⃣-deploy-maxkb)
-      - [3️⃣ Environment Configuration](#3️⃣-environment-configuration)
-      - [4️⃣ Install Dependencies](#4️⃣-install-dependencies)
-    - [🚀 Launch Services](#-launch-services)
-    - [🌐 Access the Platform](#-access-the-platform)
-  - [📖 Usage Guide](#-usage-guide)
-    - [Basic Workflow](#basic-workflow)
   - [🤝 Contributing](#-contributing)
   - [📄 License](#-license)
   - [📢 Community Initiative](#-community-initiative)
@@ -228,6 +229,135 @@ OpenVista/
 
 ---
 
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.8+
+- Node.js 16+
+- Docker Desktop (for MaxKB)
+- Git (Git LFS auto-installed)
+
+### 🎯 One-Click Setup (Recommended)
+
+We provide unified setup scripts that automate all configuration:
+
+**Windows PowerShell:**
+```powershell
+git clone https://github.com/your-username/OpenVista.git
+cd OpenVista
+.\setup.ps1
+```
+
+**Linux / macOS:**
+```bash
+git clone https://github.com/your-username/OpenVista.git
+cd OpenVista
+chmod +x setup.sh && ./setup.sh
+```
+
+The setup script will automatically:
+
+| Step | Description |
+|------|-------------|
+| 📦 Git LFS | Pull model weights, training data, knowledge base |
+| 🐳 Docker | Detect installation, guide setup if needed |
+| 🤖 MaxKB | Deploy knowledge base, auto-restore data |
+| 🔑 API Keys | Configure GitHub Token & DeepSeek API Key |
+| 📚 Dependencies | Optional Python/Node.js installation |
+| 🚀 Launch Services | Auto-start backend, frontend, open browser |
+
+---
+
+### 📖 Manual Installation (Advanced)
+
+<details>
+<summary>Click to expand manual steps</summary>
+
+#### 1️⃣ Clone & Initialize
+
+```bash
+git clone https://github.com/your-username/OpenVista.git
+cd OpenVista
+
+# Pull large files (model weights, training data)
+git lfs install
+git lfs pull
+```
+
+#### 2️⃣ Deploy MaxKB
+
+```bash
+cd maxkb-export
+chmod +x install.sh
+./install.sh  # Windows: .\install.ps1
+```
+
+Visit `http://localhost:8080` to verify MaxKB is running.
+
+#### 3️⃣ Environment Configuration
+
+Create a `.env` file in the project root directory:
+
+```env
+# GitHub API Token (required)
+GITHUB_TOKEN=your_github_token
+
+# DeepSeek API Key (for AI features)
+DEEPSEEK_API_KEY=your_deepseek_key
+```
+
+#### 4️⃣ Install Dependencies
+
+```bash
+# Backend
+cd backend
+pip install -r requirements.txt
+
+# Frontend
+cd ../frontend
+npm install
+```
+
+</details>
+
+---
+
+### 🚀 Launch Services
+
+```bash
+# Terminal 1: Start Backend (port 5000)
+cd backend
+python app.py
+
+# Terminal 2: Start Frontend (port 3000)
+cd frontend
+npm run dev
+```
+
+### 🌐 Access the Platform
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:3000 |
+| Backend API | http://localhost:5000 |
+| MaxKB Knowledge Base | http://localhost:8080 |
+
+---
+
+## 📖 Usage Guide
+
+### Basic Workflow
+
+1. **🔍 Search Repository** — Enter `owner/repo` (e.g., `facebook/react`)
+2. **⏳ Wait for Crawling** — Data fetched from GitHub API & OpenDigger
+3. **📊 Explore Analytics** — View time-series charts, Issue analysis
+4. **🔮 Check Predictions** — See 12-month forecasts with AI explanations
+5. **📈 CHAOSS Evaluation** — Assess community health scores
+6. **🤖 AI Q&A** — Use MaxKB to ask questions about the repository
+
+---
+
 ## 🤖 MaxKB Intelligent Q&A System
 
 <div align="center">
@@ -262,6 +392,11 @@ The system automatically builds a knowledge base for each analyzed repository:
 | **Deployment** | Docker Compose | One-click deployment with data persistence |
 | **Vector Database** | PostgreSQL + pgvector | Efficient vector similarity search |
 | **LLM Backend** | Configurable (DeepSeek/OpenAI etc.) | Supports multiple LLM providers |
+
+### MaxKB Initialization & Setup
+
+<details>
+<summary>If you didn’t set it up earlier, you can configure MaxKB here</summary>
 
 ### Deployment & Configuration
 
@@ -298,6 +433,29 @@ The installation script will automatically:
 docker-compose -f docker-compose.maxkb.yml up -d
 ```
 
+</details>
+
+After installation, open `http://localhost:8080`. The page should look like:
+
+<div align="center">
+<img src="image/maxkb初始化.png" alt="MaxKB initialization page" width="700"/>
+</div>
+
+Since initialization is already done during install, the default account is:
+
+- Username: `admin`
+- Password: `MaxKB@123456`
+
+After login, follow the [MaxKB official docs](https://maxkb.cn/docs/v2/) to:
+
+1. Create a knowledge base (for project documents)
+2. Create a "Simple Application" and associate it with the knowledge base
+3. Choose and configure the LLM in "Models"; if you need web search, create and configure the required "Tools"
+
+Once finished, you will have a MaxKB-powered RAG knowledge base system.
+
+
+
 #### Configure .env File
 
 Create a `.env` file in the project root directory with the following configuration:
@@ -319,7 +477,7 @@ MAXKB_API_KEY=application-c527aa669276e38ab7880b1f43255c9a
 
 ### How to Get MaxKB API Configuration Values
 
-After installing MaxKB, you need to configure the following values in your `.env` file:
+After setting up MaxKB, write the corresponding API configuration into your `.env` file:
 
 #### 1. MAXKB_KNOWLEDGE_ID
 
@@ -617,135 +775,6 @@ For detailed training instructions, model architecture, and experiment results, 
 </div>
 
 </details>
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.8+
-- Node.js 16+
-- Docker Desktop (for MaxKB)
-- Git (Git LFS auto-installed)
-
-### 🎯 One-Click Setup (Recommended)
-
-We provide unified setup scripts that automate all configuration:
-
-**Windows PowerShell:**
-```powershell
-git clone https://github.com/your-username/OpenVista.git
-cd OpenVista
-.\setup.ps1
-```
-
-**Linux / macOS:**
-```bash
-git clone https://github.com/your-username/OpenVista.git
-cd OpenVista
-chmod +x setup.sh && ./setup.sh
-```
-
-The setup script will automatically:
-
-| Step | Description |
-|------|-------------|
-| 📦 Git LFS | Pull model weights, training data, knowledge base |
-| 🐳 Docker | Detect installation, guide setup if needed |
-| 🤖 MaxKB | Deploy knowledge base, auto-restore data |
-| 🔑 API Keys | Configure GitHub Token & DeepSeek API Key |
-| 📚 Dependencies | Optional Python/Node.js installation |
-| 🚀 Launch Services | Auto-start backend, frontend, open browser |
-
----
-
-### 📖 Manual Installation (Advanced)
-
-<details>
-<summary>Click to expand manual steps</summary>
-
-#### 1️⃣ Clone & Initialize
-
-```bash
-git clone https://github.com/your-username/OpenVista.git
-cd OpenVista
-
-# Pull large files (model weights, training data)
-git lfs install
-git lfs pull
-```
-
-#### 2️⃣ Deploy MaxKB
-
-```bash
-cd maxkb-export
-chmod +x install.sh
-./install.sh  # Windows: .\install.ps1
-```
-
-Visit `http://localhost:8080` to verify MaxKB is running.
-
-#### 3️⃣ Environment Configuration
-
-Create a `.env` file in the `backend/` directory:
-
-```env
-# GitHub API Token (required)
-GITHUB_TOKEN=your_github_token
-
-# DeepSeek API Key (for AI features)
-DEEPSEEK_API_KEY=your_deepseek_key
-```
-
-#### 4️⃣ Install Dependencies
-
-```bash
-# Backend
-cd backend
-pip install -r requirements.txt
-
-# Frontend
-cd ../frontend
-npm install
-```
-
-</details>
-
----
-
-### 🚀 Launch Services
-
-```bash
-# Terminal 1: Start Backend (port 5000)
-cd backend
-python app.py
-
-# Terminal 2: Start Frontend (port 3000)
-cd frontend
-npm run dev
-```
-
-### 🌐 Access the Platform
-
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:3000 |
-| Backend API | http://localhost:5000 |
-| MaxKB Knowledge Base | http://localhost:8080 |
-
----
-
-## 📖 Usage Guide
-
-### Basic Workflow
-
-1. **🔍 Search Repository** — Enter `owner/repo` (e.g., `facebook/react`)
-2. **⏳ Wait for Crawling** — Data fetched from GitHub API & OpenDigger
-3. **📊 Explore Analytics** — View time-series charts, Issue analysis
-4. **🔮 Check Predictions** — See 12-month forecasts with AI explanations
-5. **📈 CHAOSS Evaluation** — Assess community health scores
-6. **🤖 AI Q&A** — Use MaxKB to ask questions about the repository
 
 ---
 
