@@ -356,6 +356,8 @@ npm run dev
 5. **📈 CHAOSS Evaluation** — Assess community health scores
 6. **🤖 AI Q&A** — Use MaxKB to ask questions about the repository
 
+Note: Issue analysis, predictions with AI explanations, and MaxKB Q&A are available only after crawling completes. You can track progress via the frontend progress bar at the bottom of the page or in the backend logs. A completed crawl stores data under `backend/DataProcessor/data/owner_repo/`, for example `backend/DataProcessor/data/odoo_odoo/`, with a `monthly_data_YYYYMMDD_HHMMSS/` folder containing `metadata.json`, `raw_monthly_data.json`, `text_for_maxkb/` (README/License/docs), and `timeseries_for_model/` (monthly JSON files plus summary).
+
 ---
 
 ## 🤖 MaxKB Intelligent Q&A System
